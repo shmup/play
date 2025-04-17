@@ -4,14 +4,14 @@ export function initializeClient() {
   const canvas = document.getElementById("canvas") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d")!;
 
-  let cursors: Record<string, CursorState> = {};
   let clientId = "";
-
+  let cursors: Record<string, CursorState> = {};
+  let myPosition = { x: 0, y: 0 };
   let reconnectAttempts = 0;
+  let ws: WebSocket | null = null;
+
   const maxReconnectAttempts = 10;
   const reconnectDelay = 1000;
-
-  let ws: WebSocket | null = null;
 
   function resizeCanvas() {
     canvas.width = globalThis.innerWidth;
@@ -77,7 +77,7 @@ export function initializeClient() {
           setTimeout(connectWebSocket, reconnectDelay);
         } else {
           console.error(
-            "Max reconnection attempts reached. Reload the page to try again."
+            "Max reconnection attempts reached. Reload the page to try again.",
           );
         }
       }
@@ -89,8 +89,6 @@ export function initializeClient() {
   }
 
   connectWebSocket();
-
-  let myPosition = { x: 0, y: 0 };
 
   document.addEventListener("mousemove", (e) => {
     myPosition = { x: e.clientX, y: e.clientY };
