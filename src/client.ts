@@ -2,10 +2,16 @@ import type { ClientMessage, CursorState, ServerMessage } from "./shared.ts";
 
 export function initializeClient() {
   const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-
   const ctx = canvas.getContext("2d")!;
+
   let cursors: Record<string, CursorState> = {};
   let clientId = "";
+
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 10;
+  const reconnectDelay = 1000;
+
+  let ws: WebSocket | null = null;
 
   function resizeCanvas() {
     canvas.width = globalThis.innerWidth;
@@ -35,31 +41,54 @@ export function initializeClient() {
     }
   }
 
-  const ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
+  function connectWebSocket() {
+    ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
 
-  ws.onopen = () => {
-    console.log("Connected to server");
-  };
+    ws.onopen = () => {
+      console.log("Connected to server");
+      reconnectAttempts = 0;
+    };
 
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data) as ServerMessage;
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data) as ServerMessage;
 
-    if (data.type === "init") {
-      clientId = data.clientId;
-      cursors = data.cursors;
-      renderCursors();
-    } else if (data.type === "update") {
-      cursors[data.clientId] = {
-        x: data.x,
-        y: data.y,
-        color: data.color,
-      };
-      renderCursors();
-    } else if (data.type === "disconnect") {
-      delete cursors[data.clientId];
-      renderCursors();
-    }
-  };
+      if (data.type === "init") {
+        clientId = data.clientId;
+        cursors = data.cursors;
+        renderCursors();
+      } else if (data.type === "update") {
+        cursors[data.clientId] = {
+          x: data.x,
+          y: data.y,
+          color: data.color,
+        };
+        renderCursors();
+      } else if (data.type === "disconnect") {
+        delete cursors[data.clientId];
+        renderCursors();
+      }
+    };
+
+    ws.onclose = (event) => {
+      if (!event.wasClean) {
+        console.log("Connection lost. Attempting to reconnect...");
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(connectWebSocket, reconnectDelay);
+        } else {
+          console.error(
+            "Max reconnection attempts reached. Reload the page to try again."
+          );
+        }
+      }
+    };
+
+    ws.onerror = () => {
+      ws?.close();
+    };
+  }
+
+  connectWebSocket();
 
   let myPosition = { x: 0, y: 0 };
 
@@ -75,7 +104,7 @@ export function initializeClient() {
       renderCursors();
     }
 
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       const message: ClientMessage = {
         type: "move",
         x: e.clientX,
