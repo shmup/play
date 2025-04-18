@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from "../../types/shared.ts";
+import { CanvasManager } from "../../utils/canvas-manager.ts";
 
 export interface PluginContext {
   clientId: string;
@@ -6,6 +7,8 @@ export interface PluginContext {
   getState: () => AppState;
   setState: (updater: (state: AppState) => void) => void;
   forceRender: () => void;
+  canvasManager: CanvasManager;
+  markLayerDirty: (layerId: string, region?: { x: number, y: number, width: number, height: number }) => void;
 }
 
 export interface AppState {
@@ -24,6 +27,12 @@ export interface ClientPlugin {
     message: ServerMessage,
     context: PluginContext,
   ) => boolean | void;
+  onBeforeRender?: (context: PluginContext) => string[] | void;
+  onRenderLayer?: (
+    layerId: string, 
+    ctx: CanvasRenderingContext2D, 
+    context: PluginContext
+  ) => void;
   onRender?: (ctx: CanvasRenderingContext2D, context: PluginContext) => void;
 }
 
@@ -39,13 +48,15 @@ export function registerPlugin(plugin: ClientPlugin): void {
 }
 
 export function initializeClient(): void {
-  const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-  const ctx = canvas.getContext("2d")!;
+  // Create canvas manager instead of using a single canvas
+  const canvasManager = new CanvasManager("canvas-container");
+  const mainCanvas = canvasManager.getMainCanvas();
 
   let clientId = "";
   let appState: AppState = {};
   let ws: WebSocket | null = null;
   let reconnectAttempts = 0;
+  let renderScheduled = false;
 
   const maxReconnectAttempts = 10;
   const reconnectDelay = 1000;
@@ -60,31 +71,107 @@ export function initializeClient(): void {
         updater(newState);
         appState = newState;
         // Schedule a render on the next animation frame for better performance
-        requestAnimationFrame(() => render());
+        scheduleRender();
       },
       forceRender: () => {
         render();
       },
+      canvasManager,
+      markLayerDirty: (layerId, region) => {
+        canvasManager.markDirty(layerId, region);
+        scheduleRender();
+      },
     };
+  }
+
+  function scheduleRender(): void {
+    if (!renderScheduled) {
+      renderScheduled = true;
+      requestAnimationFrame(() => {
+        render();
+        renderScheduled = false;
+      });
+    }
   }
 
   function render(): void {
     try {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
       const context = createContext();
+      
+      // Get all layers that need rendering
+      const layerIds = new Set<string>();
+      
+      // Let plugins register which layers they want to render
       for (const plugin of plugins) {
-        plugin.onRender?.(ctx, context);
+        if (plugin.onBeforeRender) {
+          const pluginLayers = plugin.onBeforeRender(context) || [];
+          pluginLayers.forEach(id => layerIds.add(id));
+        }
+      }
+      
+      // Add default layers
+      layerIds.add('main');
+      layerIds.add('ui');
+      
+      // Clear and render each dirty layer
+      layerIds.forEach(layerId => {
+        const layer = canvasManager.getLayer(layerId);
+        if (layer.isDirty || layer.needsFullRedraw) {
+          // Special handling for cursor layer - always clear completely
+          if (layerId === 'cursor') {
+            canvasManager.clearLayer(layerId);
+          } else {
+            canvasManager.clearDirtyRegions(layerId);
+          }
+          
+          // Let plugins render to this specific layer
+          for (const plugin of plugins) {
+            plugin.onRenderLayer?.(layerId, layer.ctx, context);
+          }
+        }
+      });
+      
+      // Call the legacy onRender method for backward compatibility
+      // This renders to the main layer
+      const mainLayer = canvasManager.getLayer('main');
+      for (const plugin of plugins) {
+        plugin.onRender?.(mainLayer.ctx, context);
+      }
+      
+      // Debug rendering - only log occasionally to reduce console spam
+      if (Math.random() < 0.05) {
+        console.log("Rendered layers:", Array.from(layerIds));
       }
     } catch (error) {
       console.error("Render error:", error);
       // Schedule another render attempt on failure
-      requestAnimationFrame(() => render());
+      scheduleRender();
     }
   }
 
   function sendMessage(message: ClientMessage): void {
     let processed = message;
     const context = createContext();
+    
+    // Special handling for draw messages - bypass plugin processing
+    if (message.type === "draw") {
+      console.log("DIRECT SEND for draw message:", message);
+      if (ws?.readyState === WebSocket.OPEN) {
+        try {
+          const stringMessage = JSON.stringify(message);
+          console.log("Sending raw draw message:", stringMessage);
+          ws.send(stringMessage);
+          return;
+        } catch (error) {
+          console.error("Error sending draw message:", error);
+        }
+      } else {
+        console.warn("WebSocket not open, draw message not sent");
+        return;
+      }
+    }
+    
+    // Normal processing for non-draw messages
     for (const plugin of plugins) {
       if (plugin.onBeforeSend) {
         const result = plugin.onBeforeSend(processed, context);
@@ -94,8 +181,21 @@ export function initializeClient(): void {
         processed = result;
       }
     }
+    
     if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(processed));
+      // Log outgoing messages for debugging (except frequent cursor moves)
+      if (message.type !== "move") {
+        console.log("Sending message:", message.type, message);
+      }
+      
+      // Make sure we're actually sending the message
+      try {
+        ws.send(JSON.stringify(processed));
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    } else {
+      console.warn("WebSocket not open, message not sent:", message.type);
     }
   }
 
@@ -104,6 +204,12 @@ export function initializeClient(): void {
     if (message.type === "init") {
       clientId = message.clientId;
     }
+    
+    // Log incoming messages for debugging (except frequent cursor updates)
+    if (message.type !== "update") {
+      console.log("Received message:", message.type, message);
+    }
+    
     for (const plugin of plugins) {
       if (plugin.onMessage) {
         const shouldContinue = plugin.onMessage(message, context);
@@ -120,6 +226,9 @@ export function initializeClient(): void {
 
   function connect(): void {
     ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
+    // Expose WebSocket for debugging
+    (window as any).debugSocket = ws;
+    
     ws.onopen = () => {
       reconnectAttempts = 0;
       const context = createContext();
@@ -148,13 +257,9 @@ export function initializeClient(): void {
   }
 
   globalThis.addEventListener("resize", () => {
-    canvas.width = globalThis.innerWidth;
-    canvas.height = globalThis.innerHeight;
-    render();
+    canvasManager.resize();
+    scheduleRender();
   });
-
-  canvas.width = globalThis.innerWidth;
-  canvas.height = globalThis.innerHeight;
 
   connect();
   render();
