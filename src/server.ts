@@ -82,7 +82,7 @@ Deno.serve((req) => {
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data) as ClientMessage;
-        console.log(`Received message from ${clientId}:`, message);
+        console.log(`From ${clientId.slice(0, 8)}:`, message);
         const context = createContext();
         for (const plugin of plugins) {
           const shouldContinue = plugin.onMessage?.(clientId, message, context);

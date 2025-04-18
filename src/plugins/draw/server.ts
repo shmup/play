@@ -29,15 +29,20 @@ export const DrawServerPlugin: ServerPlugin = {
   ) {
     // Handle draw messages
     if (message.type === "draw") {
-      console.log(`Received draw message from ${clientId}:`, JSON.stringify(message));
+      console.log(`From ${clientId.substring(0, 8)}: ${JSON.stringify(message)}`);
       
       const state = context.getState() as any;
       const cursors = state.cursors || {};
-      const cursor = cursors[clientId];
       
+      // Make sure we have a cursor for this client, or create a default one
+      let cursor = cursors[clientId];
       if (!cursor) {
-        console.log("No cursor found for client:", clientId);
-        return;
+        console.log(`From ${clientId.substring(0, 8)}: No cursor found, using default`);
+        cursor = {
+          x: message.x || 0,
+          y: message.y || 0,
+          color: "#FF0000" // Default red color
+        };
       }
       
       // Initialize client draw states if needed
@@ -61,12 +66,8 @@ export const DrawServerPlugin: ServerPlugin = {
         const prevX = drawState.isDrawing ? drawState.lastX : message.x;
         const prevY = drawState.isDrawing ? drawState.lastY : message.y;
         
-        console.log(`Drawing state: isDrawing=${drawState.isDrawing}, lastX=${drawState.lastX}, lastY=${drawState.lastY}`);
-        console.log(`Current position: x=${message.x}, y=${message.y}`);
-        
         // Create a line even if it's the first point (to handle single clicks)
         if (drawState.isDrawing || true) {
-          console.log(`Creating line from (${prevX},${prevY}) to (${message.x},${message.y})`);
           
           // Create a new line
           const line: DrawLine = {
@@ -97,10 +98,7 @@ export const DrawServerPlugin: ServerPlugin = {
             color
           });
           
-          // Log the broadcast
-          console.log(`Broadcasting line: (${prevX},${prevY}) to (${message.x},${message.y}) with color ${color}`);
         } else {
-          console.log(`Starting draw or no movement: isDrawing=${drawState.isDrawing}, prevPos=(${prevX},${prevY}), newPos=(${message.x},${message.y})`);
         }
         
         // Update drawing state
@@ -123,8 +121,6 @@ export const DrawServerPlugin: ServerPlugin = {
           }
         });
       } else {
-        console.log(`Stopping drawing for client ${clientId}`);
-        console.log(`Final position: x=${message.x}, y=${message.y}`);
         // Stop drawing
         context.setState(state => {
           if (!state.clientDrawStates) {
