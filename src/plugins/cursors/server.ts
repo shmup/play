@@ -19,9 +19,14 @@ export const CursorServerPlugin: ServerPlugin = {
   onClientConnect(clientId: string, context: ServerPluginContext) {
     const color = getRandomColor();
 
+    // We'll initialize with default center values
+    // The actual position will be updated when the client sends its dimensions
+    const defaultX = 500;
+    const defaultY = 300;
+
     context.setState((state: ServerAppState) => {
       if (!state.cursors) state.cursors = {};
-      state.cursors[clientId] = { x: 0, y: 0, color };
+      state.cursors[clientId] = { x: defaultX, y: defaultY, color };
     });
 
     // Send current cursor positions to new client
@@ -36,8 +41,8 @@ export const CursorServerPlugin: ServerPlugin = {
     context.broadcast({
       type: "update",
       clientId,
-      x: 0,
-      y: 0,
+      x: defaultX,
+      y: defaultY,
       color,
     }, clientId);
   },
@@ -60,6 +65,39 @@ export const CursorServerPlugin: ServerPlugin = {
     message: ClientMessage,
     context: ServerPluginContext,
   ) {
+    // Handle window dimensions message to center cursor
+    if (message.type === "custom" && message.pluginId === PLUGIN_ID && message.data?.windowSize) {
+      const { width, height } = message.data.windowSize;
+      const centerX = Math.floor(width / 2);
+      const centerY = Math.floor(height / 2);
+      const state = context.getState();
+      const cursorState = state.cursors?.[clientId];
+
+      if (cursorState) {
+        // Update server state with centered position
+        context.setState((state) => {
+          if (state.cursors) {
+            state.cursors[clientId] = {
+              ...state.cursors[clientId],
+              x: centerX,
+              y: centerY,
+            };
+          }
+        });
+
+        // Broadcast to all clients
+        context.broadcast({
+          type: "update",
+          clientId,
+          x: centerX,
+          y: centerY,
+          color: cursorState.color,
+        });
+      }
+      
+      return false;
+    }
+    
     if (message.type === "move") {
       const state = context.getState();
       const cursorState = state.cursors?.[clientId];

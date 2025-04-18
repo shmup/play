@@ -12,6 +12,26 @@ export const CursorPlugin = defineClientPlugin({
       state.cursors = {};
     });
 
+    // Send window dimensions to server for proper cursor centering
+    const sendWindowDimensions = () => {
+      context.sendMessage({
+        type: "custom",
+        pluginId: "cursor",
+        data: {
+          windowSize: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          }
+        }
+      });
+    };
+
+    // Send dimensions on init
+    sendWindowDimensions();
+
+    // Also send dimensions when window is resized
+    window.addEventListener("resize", sendWindowDimensions);
+
     document.addEventListener("mousemove", (e) => {
       const position = { x: e.clientX, y: e.clientY };
 
