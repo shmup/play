@@ -25,7 +25,13 @@ export interface ServerAppState {
   [key: string]: any;
 }
 
+export interface SocketLike {
+  readyState: number;
+  send(msg: unknown): unknown;
+  [key: string]: unknown;
+}
+
 export interface ClientState {
-  socket: WebSocket;
+  socket: WebSocket | SocketLike;
   [key: string]: unknown;
 }

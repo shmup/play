@@ -1,8 +1,13 @@
+default: dev
+
+compile:
+  deno run compile
+
 dev:
   deno run dev
 
 profile:
   deno run profile
 
-compile:
-  deno run compile
+test:
+  deno run test
