@@ -7,12 +7,17 @@ export interface PluginContext {
   getState: () => AppState;
   setState: (updater: (state: AppState) => void) => void;
   forceRender: () => void;
-  canvasManager: CanvasManager;
-  markLayerDirty: (layerId: string, region?: { x: number, y: number, width: number, height: number }) => void;
+  // The canvasManager may be any object implementing necessary methods (getLayer, markDirty, getDimensions, etc.)
+  canvasManager: any;
+  // Mark a layer as dirty; region parameter is optional
+  markLayerDirty: (...args: any[]) => void;
 }
 
+/**
+ * Application state is a dynamic key-value store for plugins
+ */
 export interface AppState {
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface ClientPlugin {
@@ -27,11 +32,12 @@ export interface ClientPlugin {
     message: ServerMessage,
     context: PluginContext,
   ) => boolean | void;
-  onBeforeRender?: (context: PluginContext) => string[] | void;
+  // Called before rendering; plugins must return an array of layer IDs to render
+  onBeforeRender?: (context: PluginContext) => string[];
   onRenderLayer?: (
-    layerId: string, 
-    ctx: CanvasRenderingContext2D, 
-    context: PluginContext
+    layerId: string,
+    ctx: CanvasRenderingContext2D,
+    context: PluginContext,
   ) => void;
   onRender?: (ctx: CanvasRenderingContext2D, context: PluginContext) => void;
 }
@@ -97,47 +103,47 @@ export function initializeClient(): void {
   function render(): void {
     try {
       const context = createContext();
-      
+
       // Get all layers that need rendering
       const layerIds = new Set<string>();
-      
+
       // Let plugins register which layers they want to render
       for (const plugin of plugins) {
         if (plugin.onBeforeRender) {
           const pluginLayers = plugin.onBeforeRender(context) || [];
-          pluginLayers.forEach(id => layerIds.add(id));
+          pluginLayers.forEach((id) => layerIds.add(id));
         }
       }
-      
+
       // Add default layers
-      layerIds.add('main');
-      layerIds.add('ui');
-      
+      layerIds.add("main");
+      layerIds.add("ui");
+
       // Clear and render each dirty layer
-      layerIds.forEach(layerId => {
+      layerIds.forEach((layerId) => {
         const layer = canvasManager.getLayer(layerId);
         if (layer.isDirty || layer.needsFullRedraw) {
           // Special handling for cursor layer - always clear completely
-          if (layerId === 'cursor') {
+          if (layerId === "cursor") {
             canvasManager.clearLayer(layerId);
           } else {
             canvasManager.clearDirtyRegions(layerId);
           }
-          
+
           // Let plugins render to this specific layer
           for (const plugin of plugins) {
             plugin.onRenderLayer?.(layerId, layer.ctx, context);
           }
         }
       });
-      
+
       // Call the legacy onRender method for backward compatibility
       // This renders to the main layer
-      const mainLayer = canvasManager.getLayer('main');
+      const mainLayer = canvasManager.getLayer("main");
       for (const plugin of plugins) {
         plugin.onRender?.(mainLayer.ctx, context);
       }
-      
+
       // Debug rendering - only log occasionally to reduce console spam
       if (Math.random() < 0.05) {
         console.log("Rendered layers:", Array.from(layerIds));
@@ -152,7 +158,7 @@ export function initializeClient(): void {
   function sendMessage(message: ClientMessage): void {
     let processed = message;
     const context = createContext();
-    
+
     // Special handling for draw messages - bypass plugin processing
     if (message.type === "draw") {
       console.log("DIRECT SEND for draw message:", message);
@@ -170,7 +176,7 @@ export function initializeClient(): void {
         return;
       }
     }
-    
+
     // Normal processing for non-draw messages
     for (const plugin of plugins) {
       if (plugin.onBeforeSend) {
@@ -181,13 +187,13 @@ export function initializeClient(): void {
         processed = result;
       }
     }
-    
+
     if (ws?.readyState === WebSocket.OPEN) {
       // Log outgoing messages for debugging (except frequent cursor moves)
       if (message.type !== "move") {
         console.log("Sending message:", message.type, message);
       }
-      
+
       // Make sure we're actually sending the message
       try {
         ws.send(JSON.stringify(processed));
@@ -204,12 +210,12 @@ export function initializeClient(): void {
     if (message.type === "init") {
       clientId = message.clientId;
     }
-    
+
     // Log incoming messages for debugging (except frequent cursor updates)
     if (message.type !== "update") {
       console.log("Received message:", message.type, message);
     }
-    
+
     for (const plugin of plugins) {
       if (plugin.onMessage) {
         const shouldContinue = plugin.onMessage(message, context);
@@ -228,7 +234,7 @@ export function initializeClient(): void {
     ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
     // Expose WebSocket for debugging
     (window as any).debugSocket = ws;
-    
+
     ws.onopen = () => {
       reconnectAttempts = 0;
       const context = createContext();

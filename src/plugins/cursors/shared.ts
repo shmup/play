@@ -12,3 +12,4 @@ export interface CursorClientState {
 export interface CursorsPluginState {
   cursors: Record<string, CursorState>;
 }
+export const CURSOR_LAYER = "cursor";

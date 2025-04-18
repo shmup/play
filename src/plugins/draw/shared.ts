@@ -24,3 +24,6 @@ export interface DrawClientMessageData {
 export interface DrawServerMessageData {
   lines: DrawLine[];
 }
+// Layer identifiers for rendering draw plugin
+export const STATIC_LAYER = "draw-static";
+export const ACTIVE_LAYER = "draw-active";

@@ -66,8 +66,12 @@ export const CursorServerPlugin: ServerPlugin = {
     context: ServerPluginContext,
   ) {
     // Handle window dimensions message to center cursor
-    if (message.type === "custom" && message.pluginId === PLUGIN_ID && message.data?.windowSize) {
-      const { width, height } = message.data.windowSize;
+    // Handle window dimensions message to center cursor
+    if (
+      message.type === "custom" && message.pluginId === PLUGIN_ID &&
+      (message.data as any)?.windowSize
+    ) {
+      const { width, height } = (message.data as any).windowSize;
       const centerX = Math.floor(width / 2);
       const centerY = Math.floor(height / 2);
       const state = context.getState();
@@ -94,10 +98,10 @@ export const CursorServerPlugin: ServerPlugin = {
           color: cursorState.color,
         });
       }
-      
+
       return false;
     }
-    
+
     if (message.type === "move") {
       const state = context.getState();
       const cursorState = state.cursors?.[clientId];

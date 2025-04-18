@@ -29,46 +29,51 @@ export const DrawServerPlugin: ServerPlugin = {
   ) {
     // Handle draw messages
     if (message.type === "draw") {
-      console.log(`From ${clientId.substring(0, 8)}: ${JSON.stringify(message)}`);
-      
+      console.log(
+        `From ${clientId.substring(0, 8)}: ${JSON.stringify(message)}`,
+      );
+
       const state = context.getState() as any;
       const cursors = state.cursors || {};
-      
+
       // Make sure we have a cursor for this client, or create a default one
       let cursor = cursors[clientId];
       if (!cursor) {
-        console.log(`From ${clientId.substring(0, 8)}: No cursor found, using default`);
+        console.log(
+          `From ${clientId.substring(0, 8)}: No cursor found, using default`,
+        );
         cursor = {
           x: message.x || 0,
           y: message.y || 0,
-          color: "#FF0000" // Default red color
+          color: "#FF0000", // Default red color
         };
       }
-      
+
       // Initialize client draw states if needed
-      if (!state.clientDrawStates) {
-        context.setState(state => {
-          state.clientDrawStates = {};
+      let clientDrawStates = state.clientDrawStates;
+      if (!clientDrawStates) {
+        context.setState((s) => {
+          s.clientDrawStates = {};
         });
+        clientDrawStates = {};
       }
-      
-      const drawState = state.clientDrawStates[clientId] || { 
+      // Retrieve or default the draw state for this client
+      const drawState = clientDrawStates[clientId] || {
         isDrawing: false,
         lastX: cursor.x,
-        lastY: cursor.y
+        lastY: cursor.y,
       };
-      
+
       if (message.isDrawing) {
         // Get the client's cursor color
         const color = cursor.color;
-        
+
         // Get the client's previous position
         const prevX = drawState.isDrawing ? drawState.lastX : message.x;
         const prevY = drawState.isDrawing ? drawState.lastY : message.y;
-        
+
         // Create a line even if it's the first point (to handle single clicks)
         if (drawState.isDrawing || true) {
-          
           // Create a new line
           const line: DrawLine = {
             clientId,
@@ -76,9 +81,9 @@ export const DrawServerPlugin: ServerPlugin = {
             startY: prevY,
             endX: message.x,
             endY: message.y,
-            color
+            color,
           };
-          
+
           // Add the line to the state
           context.setState((state) => {
             if (!(state as any).drawLines) {
@@ -86,7 +91,7 @@ export const DrawServerPlugin: ServerPlugin = {
             }
             (state as any).drawLines.push(line);
           });
-          
+
           // Broadcast the line to all clients
           context.broadcast({
             type: "drawUpdate",
@@ -95,24 +100,23 @@ export const DrawServerPlugin: ServerPlugin = {
             y: message.y,
             prevX,
             prevY,
-            color
+            color,
           });
-          
         } else {
         }
-        
+
         // Update drawing state
-        context.setState(state => {
+        context.setState((state) => {
           if (!state.clientDrawStates) {
             state.clientDrawStates = {};
           }
           state.clientDrawStates[clientId] = {
             isDrawing: true,
             lastX: message.x,
-            lastY: message.y
+            lastY: message.y,
           };
         });
-        
+
         // Update cursor position
         context.setState((state) => {
           if (state.cursors && state.cursors[clientId]) {
@@ -122,37 +126,37 @@ export const DrawServerPlugin: ServerPlugin = {
         });
       } else {
         // Stop drawing
-        context.setState(state => {
+        context.setState((state) => {
           if (!state.clientDrawStates) {
             state.clientDrawStates = {};
           }
           state.clientDrawStates[clientId] = {
             isDrawing: false,
             lastX: message.x || cursor.x,
-            lastY: message.y || cursor.y
+            lastY: message.y || cursor.y,
           };
         });
       }
     }
-    
+
     // Handle custom messages
     if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
       const data = message.data as any;
-      
+
       // Client is requesting drawing history
       if (data.requestHistory) {
         const state = context.getState() as any;
         const lines = (state.drawLines || []) as DrawLine[];
-        
+
         // Send the drawing history to the client
         context.sendTo(clientId, {
           type: "custom",
           pluginId: PLUGIN_ID,
           data: {
-            lines
-          }
+            lines,
+          },
         });
       }
     }
-  }
+  },
 };

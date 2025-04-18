@@ -5,7 +5,7 @@ import type { CursorState } from "../../types/shared.ts";
 import { DirtyRegion } from "../../utils/canvas-manager.ts";
 
 // Constants
-const CURSOR_LAYER = 'cursor';
+const CURSOR_LAYER = "cursor";
 const CURSOR_SIZE = 10;
 const LABEL_PADDING = 5;
 const LABEL_HEIGHT = 20;
@@ -18,9 +18,11 @@ export const CursorPlugin = defineClientPlugin({
     context.setState((state) => {
       state.cursors = {};
     });
-    
+
     // Initialize cursor layer with high z-index
     context.canvasManager.getLayer(CURSOR_LAYER, 10);
+    // Mark cursor layer as dirty for initial render
+    context.markLayerDirty(CURSOR_LAYER);
 
     // Send window dimensions to server for proper cursor centering
     const sendWindowDimensions = () => {
@@ -29,10 +31,10 @@ export const CursorPlugin = defineClientPlugin({
         pluginId: "cursor",
         data: {
           windowSize: {
-            width: window.innerWidth,
-            height: window.innerHeight
-          }
-        }
+            width: globalThis.innerWidth,
+            height: globalThis.innerHeight,
+          },
+        },
       });
     };
 
@@ -42,35 +44,41 @@ export const CursorPlugin = defineClientPlugin({
     // Also send dimensions when window is resized
     window.addEventListener("resize", sendWindowDimensions);
 
-    document.addEventListener("mousemove", (e) => {
-      const position = { x: e.clientX, y: e.clientY };
-      const state = context.getState() as any;
-      
-      // Update local cursor position
-      context.setState((state) => {
-        if (context.clientId && state.cursors) {
-          state.cursors[context.clientId] = {
+    // Listen to mouse movement if supported
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("mousemove", (e) => {
+        const position = { x: e.clientX, y: e.clientY };
+        const state = context.getState() as any;
+
+        // Update local cursor position
+        context.setState((state) => {
+          if (context.clientId && state.cursors) {
+            state.cursors[context.clientId] = {
+              x: position.x,
+              y: position.y,
+              color: state.cursors[context.clientId]?.color || "#000000",
+            };
+          }
+        });
+
+        // Only send move message if not currently drawing
+        if (!state.isDrawing) {
+          context.sendMessage({
+            type: "move",
             x: position.x,
             y: position.y,
-            color: state.cursors[context.clientId]?.color || "#000000",
-          };
+          });
         }
+
+        // Mark cursor layer as dirty
+        context.markLayerDirty(CURSOR_LAYER);
       });
+    }
 
-      // Only send move message if not currently drawing
-      if (!state.isDrawing) {
-        context.sendMessage({
-          type: "move",
-          x: position.x,
-          y: position.y,
-        });
-      }
-      
-      // Mark cursor layer as dirty
-      context.markLayerDirty(CURSOR_LAYER);
-    });
-
-    document.body.style.cursor = "none";
+    // Hide the default cursor if supported
+    if (document.body && document.body.style) {
+      document.body.style.cursor = "none";
+    }
   },
 
   onMessage(message: ServerMessage, context: PluginContext) {
@@ -87,14 +95,14 @@ export const CursorPlugin = defineClientPlugin({
           color: message.color,
         };
       });
-      
+
       // Mark cursor layer as dirty
       context.markLayerDirty(CURSOR_LAYER);
     } else if (message.type === "disconnect") {
       context.setState((state) => {
         delete state.cursors[message.clientId];
       });
-      
+
       // Mark cursor layer as dirty
       context.markLayerDirty(CURSOR_LAYER);
     }
@@ -105,10 +113,14 @@ export const CursorPlugin = defineClientPlugin({
     // Register our cursor layer for rendering
     return [CURSOR_LAYER];
   },
-  
-  onRenderLayer(layerId: string, ctx: CanvasRenderingContext2D, context: PluginContext) {
+
+  onRenderLayer(
+    layerId: string,
+    ctx: CanvasRenderingContext2D,
+    context: PluginContext,
+  ) {
     if (layerId !== CURSOR_LAYER) return;
-    
+
     const state = context.getState();
     const { cursors } = state as { cursors: Record<string, CursorState> };
 
@@ -117,7 +129,7 @@ export const CursorPlugin = defineClientPlugin({
 
     for (const id in cursors) {
       const cursor = cursors[id];
-      
+
       ctx.beginPath();
       ctx.arc(cursor.x, cursor.y, CURSOR_SIZE, 0, 2 * Math.PI);
       ctx.fillStyle = cursor.color;
@@ -134,7 +146,7 @@ export const CursorPlugin = defineClientPlugin({
       ctx.fillText(id.slice(0, 6), cursor.x + 15, cursor.y + 5);
     }
   },
-  
+
   // Keep legacy onRender for backward compatibility
   onRender(ctx: CanvasRenderingContext2D, context: PluginContext) {
     // This is now a no-op as we use the layered rendering

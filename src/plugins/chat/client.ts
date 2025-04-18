@@ -37,18 +37,21 @@ export const ChatPlugin = defineClientPlugin({
     overlay.appendChild(input);
     document.body.appendChild(overlay);
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "t" && overlay.style.display === "none") {
-        overlay.style.display = "block";
-        input.value = "";
-        input.focus();
-        e.preventDefault();
-      } else if (e.key === "Escape" && overlay.style.display === "block") {
-        overlay.style.display = "none";
-        input.blur();
-        e.preventDefault();
-      }
-    });
+    // listen for toggle and cancel keys, if supported
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "t" && overlay.style.display === "none") {
+          overlay.style.display = "block";
+          input.value = "";
+          input.focus();
+          e.preventDefault();
+        } else if (e.key === "Escape" && overlay.style.display === "block") {
+          overlay.style.display = "none";
+          input.blur();
+          e.preventDefault();
+        }
+      });
+    }
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -65,7 +68,7 @@ export const ChatPlugin = defineClientPlugin({
         e.preventDefault();
       }
     });
-    // Reset flag for history request on new connection
+    // reset flag for history request on new connection
     historyRequested = false;
   },
 
@@ -79,28 +82,26 @@ export const ChatPlugin = defineClientPlugin({
       });
       historyRequested = true;
     }
-    // Handle actual chat entries
     if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
       const data = message.data as any;
-      // Only handle actual chat entries (must have clientId and text)
+      // only handle actual chat entries (must have clientid and text)
       if (typeof data.clientId === "string" && typeof data.text === "string") {
         context.setState((state) => {
           const s = state as any;
           if (!s.chat) s.chat = [];
           s.chat.push({ clientId: data.clientId, text: data.text });
         });
-        // Force immediate render after receiving a chat message
-        setTimeout(() => context.forceRender(), 0);
-      } // If we received chat history (multiple messages at once), force a render
+        // force immediate render after receiving a chat message
+        context.forceRender();
+      } // if we received chat history (multiple messages at once), force a render
       else if (Array.isArray(data.history)) {
         context.setState((state) => {
           const s = state as any;
           if (!s.chat) s.chat = [];
           s.chat = [...data.history];
         });
-        // Force immediate render after receiving chat history
-        // Use a slightly longer timeout to ensure state is fully updated
-        setTimeout(() => context.forceRender(), 50);
+        // force immediate render after receiving chat history
+        context.forceRender();
       }
     }
     return true;
