@@ -1,5 +1,5 @@
 import { ServerPlugin, ServerPluginContext } from "../../types/server.ts";
-import { ClientMessage, DrawLine, ServerMessage } from "../../types/shared.ts";
+import { ClientMessage, DrawLine } from "../../types/shared.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 
 export const DrawServerPlugin: ServerPlugin = {
@@ -12,31 +12,17 @@ export const DrawServerPlugin: ServerPlugin = {
     });
   },
 
-  onClientConnect(clientId: string, context: ServerPluginContext) {
-    // When a client connects, we'll send them the current drawing state
-    // This happens via the custom message request in the client
-  },
-
-  onClientDisconnect(clientId: string, context: ServerPluginContext) {
-    // We don't need to do anything special when a client disconnects
-    // Their drawings remain for others to see
-  },
-
   onMessage(
     clientId: string,
     message: ClientMessage,
     context: ServerPluginContext,
   ) {
-    // Handle draw messages
     if (message.type === "draw") {
-      console.log(
-        `From ${clientId.substring(0, 8)}: ${JSON.stringify(message)}`,
-      );
+      console.log(`From ${clientId.slice(0, 8)}:`, message);
 
       const state = context.getState() as any;
       const cursors = state.cursors || {};
 
-      // Make sure we have a cursor for this client, or create a default one
       let cursor = cursors[clientId];
       if (!cursor) {
         console.log(
@@ -45,7 +31,7 @@ export const DrawServerPlugin: ServerPlugin = {
         cursor = {
           x: message.x || 0,
           y: message.y || 0,
-          color: "#FF0000", // Default red color
+          color: "#FF0000",
         };
       }
 

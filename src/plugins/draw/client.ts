@@ -6,13 +6,10 @@ import { DirtyRegion } from "../../utils/canvas-manager.ts";
 
 let historyRequested = false;
 
-// Constants for drawing
 const LINE_WIDTH = 3;
 const PADDING = LINE_WIDTH * 2; // Padding for dirty regions
 
-// Static canvas for persistent drawings
 const STATIC_LAYER = "draw-static";
-// Dynamic canvas for active drawing
 const ACTIVE_LAYER = "draw-active";
 
 export const DrawPlugin = defineClientPlugin({
@@ -27,10 +24,9 @@ export const DrawPlugin = defineClientPlugin({
       state.isDrawing = false;
       state.lastX = 0;
       state.lastY = 0;
-      state.pendingLines = []; // Lines waiting to be committed to static layer
+      state.pendingLines = [];
     });
 
-    // Add a debug button to force a draw message
     const debugButton = document.createElement("button");
     debugButton.textContent = "Test Draw";
     debugButton.style.position = "fixed";
@@ -45,7 +41,6 @@ export const DrawPlugin = defineClientPlugin({
     debugButton.style.cursor = "pointer";
     debugButton.onclick = () => {
       console.log("Sending test draw message");
-      // Prepare a test draw message
       const testMessage: ClientMessage = {
         type: "draw",
         x: 100,
@@ -54,7 +49,6 @@ export const DrawPlugin = defineClientPlugin({
       };
       context.sendMessage(testMessage);
 
-      // Also try direct WebSocket send
       const socket = (globalThis as any).debugSocket;
       if (socket && socket.readyState === WebSocket.OPEN) {
         console.log("Sending direct test draw message");
@@ -63,7 +57,6 @@ export const DrawPlugin = defineClientPlugin({
     };
     document.body.appendChild(debugButton);
 
-    // Add a debug overlay to show mouse coordinates and drawing state
     const debugOverlay = document.createElement("div");
     debugOverlay.style.position = "fixed";
     debugOverlay.style.top = "10px";
@@ -78,7 +71,6 @@ export const DrawPlugin = defineClientPlugin({
     debugOverlay.textContent = "Mouse: 0,0 | Drawing: false";
     document.body.appendChild(debugOverlay);
 
-    // Add a manual draw toggle button
     const drawToggleButton = document.createElement("button");
     drawToggleButton.textContent = "Toggle Drawing";
     drawToggleButton.style.position = "fixed";
@@ -96,22 +88,18 @@ export const DrawPlugin = defineClientPlugin({
       const isCurrentlyDrawing = state.isDrawing;
 
       if (isCurrentlyDrawing) {
-        // Stop drawing
         context.setState((state) => {
           state.isDrawing = false;
 
-          // Commit pending lines to static layer
           if (
             (state as any).pendingLines &&
             (state as any).pendingLines.length > 0
           ) {
-            // Add pending lines to permanent lines
             (state as any).drawLines = [
               ...((state as any).drawLines || []),
               ...((state as any).pendingLines || []),
             ];
 
-            // Clear pending lines after commit
             (state as any).pendingLines = [];
           }
         });
@@ -121,7 +109,6 @@ export const DrawPlugin = defineClientPlugin({
         drawToggleButton.textContent = "Start Drawing";
         drawToggleButton.style.backgroundColor = "#2196F3";
       } else {
-        // Start drawing
         const rect = canvas.getBoundingClientRect();
         const x = Math.round(rect.width / 2);
         const y = Math.round(rect.height / 2);
@@ -143,8 +130,6 @@ export const DrawPlugin = defineClientPlugin({
     };
     document.body.appendChild(drawToggleButton);
 
-    // Update debug overlay on mouse move
-    // Update debug overlay on mouse move if supported
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousemove", (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -156,29 +141,28 @@ export const DrawPlugin = defineClientPlugin({
       });
     }
 
-    // Initialize our layers
     context.canvasManager.getLayer(STATIC_LAYER, 1);
     context.canvasManager.getLayer(ACTIVE_LAYER, 2);
 
-    // Use main interaction canvas (fallback to getLayer if getMainCanvas not available)
+    // use main interaction canvas (fallback to getlayer if getmaincanvas not available)
     let canvas: HTMLCanvasElement;
     if (typeof context.canvasManager.getMainCanvas === "function") {
       canvas = context.canvasManager.getMainCanvas();
     } else {
-      // Fallback: get default 'main' layer canvas
+      // fallback: get default 'main' layer canvas
       const mainLayer = context.canvasManager.getLayer("main");
       canvas = (mainLayer && (mainLayer as any).canvas) as HTMLCanvasElement;
     }
 
-    // Mouse down event - start drawing (if supported)
+    // mouse down event - start drawing (if supported)
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousedown", (e) => {
         console.log("RAW MOUSEDOWN EVENT", e.button, e.clientX, e.clientY);
 
-        // Only handle left mouse button (button === 0)
+        // only handle left mouse button (button === 0)
         if (e.button !== 0) return;
 
-        // Check if the click is within the canvas
+        // check if the click is within the canvas
         const rect = canvas.getBoundingClientRect();
         if (
           e.clientX < rect.left ||
@@ -189,26 +173,26 @@ export const DrawPlugin = defineClientPlugin({
           return;
         }
 
-        // Check if we clicked on UI elements
+        // check if we clicked on ui elements
         const target = e.target as HTMLElement;
         if (
           target.tagName === "BUTTON" || target.tagName === "INPUT" ||
           target.tagName === "DIV"
         ) {
-          // Let the event propagate for UI elements
+          // let the event propagate for ui elements
           return;
         }
 
         e.preventDefault(); // Prevent default to ensure we capture the event
         e.stopPropagation(); // Stop propagation to prevent other handlers
 
-        // We already have rect from the check above
+        // we already have rect from the check above
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
         console.log("MOUSEDOWN EVENT CAPTURED", x, y);
 
-        // Get current cursor color
+        // get current cursor color
         const state = context.getState() as any;
         const color = state.cursors?.[context.clientId]?.color || "#000000";
 
@@ -218,10 +202,10 @@ export const DrawPlugin = defineClientPlugin({
           state.lastY = y;
         });
 
-        // Update debug overlay immediately
+        // update debug overlay immediately
         debugOverlay.textContent = `Mouse: ${x},${y} | Drawing: true`;
 
-        // Create a dot for immediate visual feedback
+        // create a dot for immediate visual feedback
         const dot: DrawLine = {
           clientId: context.clientId,
           startX: x,
@@ -238,7 +222,7 @@ export const DrawPlugin = defineClientPlugin({
           ];
         });
 
-        // Mark the active layer as dirty
+        // mark the active layer as dirty
         context.markLayerDirty(ACTIVE_LAYER, {
           x: x - PADDING,
           y: y - PADDING,
@@ -246,10 +230,10 @@ export const DrawPlugin = defineClientPlugin({
           height: PADDING * 2,
         });
 
-        // Send initial draw position using draw message type
+        // send initial draw position using draw message type
         console.log("MOUSEDOWN - Sending draw message:", x, y);
 
-        // Use a direct WebSocket message to bypass any potential plugin filtering
+        // use a direct websocket message to bypass any potential plugin filtering
         const socket = (globalThis as any).debugSocket;
         if (socket && socket.readyState === WebSocket.OPEN) {
           const initialDrawMessage: ClientMessage = {
@@ -265,7 +249,7 @@ export const DrawPlugin = defineClientPlugin({
           socket.send(JSON.stringify(initialDrawMessage));
           console.log("Direct draw message sent successfully");
         } else {
-          // Fallback to normal send
+          // fallback to normal send
           const initialDrawMessage: ClientMessage = {
             type: "draw",
             x,
@@ -286,8 +270,6 @@ export const DrawPlugin = defineClientPlugin({
       });
     }
 
-    // Mouse move event - continue drawing if mouse is down
-    // Mouse move event - continue drawing if mouse is down (if supported)
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousemove", (e) => {
         const state = context.getState() as any;
@@ -295,7 +277,6 @@ export const DrawPlugin = defineClientPlugin({
 
         console.log("RAW MOUSEMOVE EVENT - isDrawing:", state.isDrawing);
 
-        // Check if the mouse is within the canvas
         const rect = canvas.getBoundingClientRect();
         if (
           e.clientX < rect.left ||
@@ -306,12 +287,9 @@ export const DrawPlugin = defineClientPlugin({
           return;
         }
 
-        e.preventDefault(); // Prevent default to ensure we capture the event
-        e.stopPropagation(); // Stop propagation to prevent cursor plugin from handling
+        e.preventDefault();
+        e.stopPropagation();
 
-        console.log("MOUSEMOVE EVENT CAPTURED - isDrawing:", state.isDrawing);
-
-        // Use the rect variable that's already defined above
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
@@ -662,10 +640,5 @@ export const DrawPlugin = defineClientPlugin({
         ctx.stroke();
       }
     }
-  },
-
-  // Keep legacy onRender for backward compatibility
-  onRender(ctx: CanvasRenderingContext2D, context: PluginContext) {
-    // This is now a no-op as we use the layered rendering
   },
 });

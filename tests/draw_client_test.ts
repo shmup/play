@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
 import { DrawPlugin } from "../src/plugins/draw/client.ts";
 import {
   ACTIVE_LAYER,
@@ -6,7 +6,6 @@ import {
   STATIC_LAYER,
 } from "../src/plugins/draw/shared.ts";
 
-// Mock PluginContext
 const createMockContext = () => {
   const state: any = {};
   const messages: any[] = [];
@@ -42,7 +41,6 @@ const createMockContext = () => {
   };
 };
 
-// Create a mock document for testing
 const mockDocument = () => {
   (globalThis as any).document = {
     createElement: () => {
@@ -83,10 +81,8 @@ Deno.test("DrawPlugin initialization", () => {
   mockDocument();
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawPlugin.onInit!(context);
 
-  // Check if state was initialized correctly
   const state = context.getState();
   assertEquals(Array.isArray(state.drawLines), true);
   assertEquals(state.isDrawing, false);
@@ -99,17 +95,14 @@ Deno.test("DrawPlugin requests history on init", () => {
   mockDocument();
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawPlugin.onInit!(context);
 
-  // Simulate receiving init message
   DrawPlugin.onMessage!({
     type: "init",
     clientId: "test-client-id",
     cursors: {},
   }, context);
 
-  // Check if history request was sent
   const messages = context._getMessages();
   assertEquals(messages.length, 1);
   assertEquals(messages[0].type, "custom");
@@ -121,10 +114,8 @@ Deno.test("DrawPlugin handles draw history", () => {
   mockDocument();
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawPlugin.onInit!(context);
 
-  // Simulate receiving draw history
   DrawPlugin.onMessage!({
     type: "custom",
     pluginId: PLUGIN_ID,
@@ -150,7 +141,6 @@ Deno.test("DrawPlugin handles draw history", () => {
     },
   }, context);
 
-  // Check if lines were added to state
   const state = context.getState();
   assertEquals(state.drawLines.length, 2);
   assertEquals(state.drawLines[0].clientId, "client1");
@@ -160,7 +150,6 @@ Deno.test("DrawPlugin handles draw history", () => {
   assertEquals(state.drawLines[0].endY, 40);
   assertEquals(state.drawLines[0].color, "#FF0000");
 
-  // Check if layers were marked dirty
   const dirtyLayers = context._getDirtyLayers();
   assertEquals(dirtyLayers.includes(STATIC_LAYER), true);
 });
@@ -169,13 +158,10 @@ Deno.test("DrawPlugin registers layers for rendering", () => {
   mockDocument();
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawPlugin.onInit!(context);
 
-  // Call onBeforeRender
   const layers = DrawPlugin.onBeforeRender!(context);
 
-  // Check if both layers are registered
   assertEquals(layers.includes(STATIC_LAYER), true);
   assertEquals(layers.includes(ACTIVE_LAYER), true);
 });

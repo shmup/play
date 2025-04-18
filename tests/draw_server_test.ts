@@ -1,8 +1,7 @@
-import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
 import { DrawServerPlugin } from "../src/plugins/draw/server.ts";
 import { PLUGIN_ID } from "../src/plugins/draw/shared.ts";
 
-// Mock ServerPluginContext
 const createMockContext = () => {
   const state: any = {};
   const broadcastMessages: any[] = [];
@@ -34,10 +33,8 @@ const createMockContext = () => {
 Deno.test("DrawServerPlugin initialization", () => {
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawServerPlugin.onInit!(context);
 
-  // Check if state was initialized correctly
   const state = context.getState();
   assertEquals(Array.isArray(state.drawLines), true);
 });
@@ -45,10 +42,8 @@ Deno.test("DrawServerPlugin initialization", () => {
 Deno.test("DrawServerPlugin handles history request", () => {
   const context = createMockContext();
 
-  // Initialize the plugin
   DrawServerPlugin.onInit!(context);
 
-  // Add some lines to state
   context.setState((state) => {
     state.drawLines = [
       {
@@ -70,14 +65,12 @@ Deno.test("DrawServerPlugin handles history request", () => {
     ];
   });
 
-  // Simulate history request
   DrawServerPlugin.onMessage!("test-client", {
     type: "custom",
     pluginId: PLUGIN_ID,
     data: { requestHistory: true },
   }, context);
 
-  // Check if history was sent to the client
   const directMessages = context._getDirectMessages();
   const clientMessages = directMessages.get("test-client") || [];
 
@@ -88,20 +81,16 @@ Deno.test("DrawServerPlugin handles history request", () => {
   assertEquals(clientMessages[0].data.lines.length, 2);
 });
 
-// Test draw message handling: two sequential draw events produce a line segment and broadcast
 Deno.test("DrawServerPlugin handles draw message sequence", () => {
   const context = createMockContext();
-  // Initialize the plugin
   DrawServerPlugin.onInit!(context);
 
-  // Simulate start of drawing at (10,20)
   DrawServerPlugin.onMessage!("test-client", {
     type: "draw",
     x: 10,
     y: 20,
     isDrawing: true,
   }, context);
-  // Simulate continuation to (30,40)
   DrawServerPlugin.onMessage!("test-client", {
     type: "draw",
     x: 30,
@@ -109,10 +98,9 @@ Deno.test("DrawServerPlugin handles draw message sequence", () => {
     isDrawing: true,
   }, context);
 
-  // Check if two draw updates were recorded in state (first a dot, then a segment)
   const state = context.getState();
   assertEquals(Array.isArray(state.drawLines), true);
-  // The second line represents the segment from (10,20) to (30,40)
+
   const segment = state.drawLines[1];
   assertEquals(segment.clientId, "test-client");
   assertEquals(segment.startX, 10);
@@ -121,7 +109,6 @@ Deno.test("DrawServerPlugin handles draw message sequence", () => {
   assertEquals(segment.endY, 40);
   assertEquals(segment.color, "#FF0000");
 
-  // Check if two broadcasts were sent, the second being the segment update
   const broadcasts = context._getBroadcastMessages();
   assertEquals(broadcasts.length, 2);
   const update = broadcasts[1].message;
