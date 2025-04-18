@@ -2,6 +2,10 @@ export type ClientMessage = {
   type: "move";
   x: number;
   y: number;
+} | {
+  type: "custom";
+  pluginId: string;
+  data: unknown;
 };
 
 export type ServerMessage = {
@@ -17,6 +21,10 @@ export type ServerMessage = {
 } | {
   type: "disconnect";
   clientId: string;
+} | {
+  type: "custom";
+  pluginId: string;
+  data: unknown;
 };
 
 export type CursorState = {

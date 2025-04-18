@@ -1,48 +1,58 @@
 import { bundle } from "jsr:@deno/emit";
 import type { ClientMessage, ServerMessage } from "./types/shared.ts";
 import type {
-  ClientMessage,
-  CursorState,
-  ServerMessage,
-} from "./types/shared.ts";
+  ClientState,
+  ServerAppState,
+  ServerPlugin,
+  ServerPluginContext,
+} from "./types/server.ts";
+import { CursorServerPlugin } from "./plugins/cursors/server.ts";
 
 const result = await bundle(new URL("./client.ts", import.meta.url));
 const clientScript = result.code;
 
-const clients = new Map<string, {
-  socket: WebSocket;
-  x: number;
-  y: number;
-  color: string;
-}>();
+const appState: ServerAppState = {
+  clients: new Map<string, ClientState>(),
+  cursors: {},
+};
 
-function getRandomColor(): string {
-  const letters = "0123456789ABCDEF";
-  let color = "#";
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
+const plugins: ServerPlugin[] = [];
+registerPlugin(CursorServerPlugin);
+
+function registerPlugin(plugin: ServerPlugin) {
+  plugins.push(plugin);
+  plugins.sort((a, b) => a.priority - b.priority);
+
+  const context = createPluginContext();
+  if (plugin.onInit) {
+    plugin.onInit(context);
   }
-  return color;
 }
 
-function broadcastToOthers(senderId: string, message: ServerMessage) {
-  for (const [id, client] of clients.entries()) {
-    if (id !== senderId && client.socket.readyState === WebSocket.OPEN) {
-      client.socket.send(JSON.stringify(message));
+function createPluginContext(): ServerPluginContext {
+  return {
+    broadcast: (message: ServerMessage, excludeClientId?: string) => {
+      for (const [id, client] of appState.clients.entries()) {
+        if ((!excludeClientId || id !== excludeClientId) &&
+            client.socket.readyState === WebSocket.OPEN) {
+          client.socket.send(JSON.stringify(message));
+        }
+      }
+    },
+
+    sendTo: (clientId: string, message: ServerMessage) => {
+      const client = appState.clients.get(clientId);
+      if (client && client.socket.readyState === WebSocket.OPEN) {
+        client.socket.send(JSON.stringify(message));
+      }
+    },
+
+    getState: () => ({ ...appState }),
+
+    setState: (updater) => {
+      updater(appState);
     }
-  }
-}
-
-function getClientsState(): Record<string, CursorState> {
-  const state: Record<string, CursorState> = {};
-  for (const [id, client] of clients.entries()) {
-    state[id] = {
-      x: client.x,
-      y: client.y,
-      color: client.color,
-    };
-  }
-  return state;
+  };
 }
 
 Deno.serve((req) => {
@@ -93,54 +103,34 @@ Deno.serve((req) => {
 
     const { socket, response } = Deno.upgradeWebSocket(req);
     const clientId = crypto.randomUUID();
-    const clientColor = getRandomColor();
 
-    clients.set(clientId, {
+    appState.clients.set(clientId, {
       socket,
-      x: 0,
-      y: 0,
-      color: clientColor,
     });
 
     socket.onopen = () => {
       console.log(`Client ${clientId} connected`);
 
-      const initMessage: ServerMessage = {
-        type: "init",
-        clientId,
-        cursors: getClientsState(),
-      };
-      socket.send(JSON.stringify(initMessage));
-
-      const updateMessage: ServerMessage = {
-        type: "update",
-        clientId,
-        x: 0,
-        y: 0,
-        color: clientColor,
-      };
-      broadcastToOthers(clientId, updateMessage);
+      const context = createPluginContext();
+      for (const plugin of plugins) {
+        if (plugin.onClientConnect) {
+          plugin.onClientConnect(clientId, context);
+        }
+      }
     };
 
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as ClientMessage;
+        const message = JSON.parse(event.data) as ClientMessage;
+        const context = createPluginContext();
 
-        if (data.type === "move") {
-          const client = clients.get(clientId);
-          if (client) {
-            client.x = data.x;
-            client.y = data.y;
+        for (const plugin of plugins) {
+          if (plugin.onMessage) {
+            const shouldContinue = plugin.onMessage(clientId, message, context);
+            if (shouldContinue === false) {
+              break;
+            }
           }
-
-          const updateMessage: ServerMessage = {
-            type: "update",
-            clientId,
-            x: data.x,
-            y: data.y,
-            color: clientColor,
-          };
-          broadcastToOthers(clientId, updateMessage);
         }
       } catch (e) {
         console.error("Failed to parse message:", e);
@@ -149,13 +139,15 @@ Deno.serve((req) => {
 
     socket.onclose = () => {
       console.log(`Client ${clientId} disconnected`);
-      clients.delete(clientId);
 
-      const disconnectMessage: ServerMessage = {
-        type: "disconnect",
-        clientId,
-      };
-      broadcastToOthers(clientId, disconnectMessage);
+      const context = createPluginContext();
+      for (const plugin of plugins) {
+        if (plugin.onClientDisconnect) {
+          plugin.onClientDisconnect(clientId, context);
+        }
+      }
+
+      appState.clients.delete(clientId);
     };
 
     return response;
