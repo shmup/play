@@ -6,6 +6,7 @@ import type {
   ServerPlugin,
   ServerPluginContext,
 } from "./types/server.ts";
+import { ChatServerPlugin } from "./plugins/chat/index.ts";
 import { CursorServerPlugin } from "./plugins/cursors/index.ts";
 import {
   appState,
@@ -18,6 +19,7 @@ const result = await bundle(new URL("./client.ts", import.meta.url));
 const clientScript = result.code;
 
 // Centralize plugin registration and state in framework/server.ts
+registerPlugin(ChatServerPlugin);
 registerPlugin(CursorServerPlugin);
 
 Deno.serve((req) => {
