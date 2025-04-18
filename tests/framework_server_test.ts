@@ -2,20 +2,20 @@ import { assertEquals } from "@std/assert";
 import { appState, createContext } from "../src/plugins/framework/server.ts";
 
 Deno.test("createContext.getState returns state copy", () => {
-  (appState as any).foo = 1;
+  appState['foo'] = 1;
   const context = createContext();
   const stateCopy = context.getState();
   stateCopy.foo = 2;
-  assertEquals((appState as any).foo, 1);
+  assertEquals(appState['foo'], 1);
 });
 
 Deno.test("createContext.setState updates appState", () => {
-  delete (appState as any).foo;
+  delete appState['foo'];
   const context = createContext();
   context.setState((state) => {
     state.foo = 3;
   });
-  assertEquals((appState as any).foo, 3);
+  assertEquals(appState['foo'], 3);
 });
 
 Deno.test("createContext.broadcast sends to open websocket clients", () => {

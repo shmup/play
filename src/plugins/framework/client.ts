@@ -8,7 +8,7 @@ export interface PluginContext {
 }
 
 export interface AppState {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ClientPlugin {
