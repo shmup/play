@@ -66,7 +66,7 @@ export const DrawPlugin = defineClientPlugin({
     const debugOverlay = document.createElement('div');
     debugOverlay.style.position = 'fixed';
     debugOverlay.style.top = '10px';
-    debugOverlay.style.left = '10px';
+    debugOverlay.style.right = '10px';
     debugOverlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
     debugOverlay.style.color = 'white';
     debugOverlay.style.padding = '10px';
@@ -168,6 +168,13 @@ export const DrawPlugin = defineClientPlugin({
         e.clientY < rect.top ||
         e.clientY > rect.bottom
       ) {
+        return;
+      }
+      
+      // Check if we clicked on UI elements
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'DIV') {
+        // Let the event propagate for UI elements
         return;
       }
       
@@ -351,11 +358,18 @@ export const DrawPlugin = defineClientPlugin({
     
     // Mouse up and mouse leave events - stop drawing
     const stopDrawing = (e: MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
       const state = context.getState() as any;
       if (!state.isDrawing) return;
+      
+      // Check if we're interacting with UI elements
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'DIV') {
+        // Don't prevent default for UI elements
+        return;
+      }
+      
+      e.preventDefault();
+      e.stopPropagation();
       
       console.log("STOP DRAWING EVENT CAPTURED");
       
