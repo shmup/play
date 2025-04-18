@@ -65,8 +65,6 @@ export const CursorServerPlugin: ServerPlugin = {
     message: ClientMessage,
     context: ServerPluginContext,
   ) {
-    // Handle window dimensions message to center cursor
-    // Handle window dimensions message to center cursor
     if (
       message.type === "custom" && message.pluginId === PLUGIN_ID &&
       (message.data as any)?.windowSize
@@ -78,7 +76,7 @@ export const CursorServerPlugin: ServerPlugin = {
       const cursorState = state.cursors?.[clientId];
 
       if (cursorState) {
-        // Update server state with centered position
+        // update server state with centered position
         context.setState((state) => {
           if (state.cursors) {
             state.cursors[clientId] = {
@@ -89,7 +87,6 @@ export const CursorServerPlugin: ServerPlugin = {
           }
         });
 
-        // Broadcast to all clients
         context.broadcast({
           type: "update",
           clientId,
@@ -107,7 +104,7 @@ export const CursorServerPlugin: ServerPlugin = {
       const cursorState = state.cursors?.[clientId];
 
       if (cursorState) {
-        // Update server state
+        // update server state
         context.setState((state) => {
           if (state.cursors) {
             state.cursors[clientId] = {
@@ -118,8 +115,6 @@ export const CursorServerPlugin: ServerPlugin = {
           }
         });
 
-        // Broadcast to all clients INCLUDING sender
-        // This ensures everyone has the same state
         context.broadcast({
           type: "update",
           clientId,
@@ -128,12 +123,12 @@ export const CursorServerPlugin: ServerPlugin = {
           color: cursorState.color,
         });
 
-        // Return false to prevent other plugins from handling this message
+        // return false to prevent other plugins from handling this message
         return false;
       }
     }
 
-    // Allow other plugins to handle this message
+    // allow other plugins to handle this message
     return true;
   },
 };
