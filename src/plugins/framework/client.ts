@@ -56,7 +56,6 @@ export function registerPlugin(plugin: ClientPlugin): void {
 export function initializeClient(): void {
   // Create canvas manager instead of using a single canvas
   const canvasManager = new CanvasManager("canvas-container");
-  const mainCanvas = canvasManager.getMainCanvas();
 
   let clientId = "";
   let appState: AppState = {};
@@ -76,7 +75,6 @@ export function initializeClient(): void {
         const newState = { ...appState };
         updater(newState);
         appState = newState;
-        // Schedule a render on the next animation frame for better performance
         scheduleRender();
       },
       forceRender: () => {
