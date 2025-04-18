@@ -1,13 +1,8 @@
 import { bundle } from "jsr:@deno/emit";
-import type { ClientMessage, ServerMessage } from "./types/shared.ts";
-import type {
-  ClientState,
-  ServerAppState,
-  ServerPlugin,
-  ServerPluginContext,
-} from "./types/server.ts";
+import type { ClientMessage } from "./types/shared.ts";
 import { ChatServerPlugin } from "./plugins/chat/index.ts";
 import { CursorServerPlugin } from "./plugins/cursors/index.ts";
+import { DrawServerPlugin } from "./plugins/draw/index.ts";
 import {
   appState,
   createContext,
@@ -21,6 +16,7 @@ const clientScript = result.code;
 // Centralize plugin registration and state in framework/server.ts
 registerPlugin(ChatServerPlugin);
 registerPlugin(CursorServerPlugin);
+registerPlugin(DrawServerPlugin);
 
 Deno.serve((req) => {
   const url = new URL(req.url);
