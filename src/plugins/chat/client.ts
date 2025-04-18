@@ -92,14 +92,15 @@ export const ChatPlugin = defineClientPlugin({
         // Force immediate render after receiving a chat message
         setTimeout(() => context.forceRender(), 0);
       } // If we received chat history (multiple messages at once), force a render
-      else if (Array.isArray(data.history) && data.history.length > 0) {
+      else if (Array.isArray(data.history)) {
         context.setState((state) => {
           const s = state as any;
           if (!s.chat) s.chat = [];
           s.chat = [...data.history];
         });
         // Force immediate render after receiving chat history
-        setTimeout(() => context.forceRender(), 0);
+        // Use a slightly longer timeout to ensure state is fully updated
+        setTimeout(() => context.forceRender(), 50);
       }
     }
     return true;
