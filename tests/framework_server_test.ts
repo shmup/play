@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
 import { appState, createContext } from "../src/plugins/framework/server.ts";
 
 Deno.test("createContext.getState returns state copy", () => {

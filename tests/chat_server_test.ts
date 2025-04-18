@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
 import { appState, createContext } from "../src/plugins/framework/server.ts";
 import { ChatServerPlugin } from "../src/plugins/chat/index.ts";
 

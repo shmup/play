@@ -6,7 +6,7 @@ import { PLUGIN_ID } from "../src/plugins/chat/shared.ts";
 const createMockContext = () => {
   const state: any = {};
   const messages: any[] = [];
-  
+
   return {
     clientId: "test-client-id",
     sendMessage: (message: any) => {
@@ -60,10 +60,10 @@ const mockDocument = () => {
 Deno.test("ChatPlugin initialization", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   ChatPlugin.onInit!(context);
-  
+
   // Check if state was initialized correctly
   const state = context.getState();
   assertEquals(Array.isArray(state.chat), true);
@@ -73,10 +73,10 @@ Deno.test("ChatPlugin initialization", () => {
 Deno.test("ChatPlugin handles chat messages", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   ChatPlugin.onInit!(context);
-  
+
   // Simulate receiving a chat message
   ChatPlugin.onMessage!({
     type: "custom",
@@ -86,7 +86,7 @@ Deno.test("ChatPlugin handles chat messages", () => {
       text: "Hello world",
     },
   }, context);
-  
+
   // Check if the message was added to the state
   const state = context.getState();
   assertEquals(state.chat.length, 1);
@@ -97,17 +97,17 @@ Deno.test("ChatPlugin handles chat messages", () => {
 Deno.test("ChatPlugin requests history on init", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   ChatPlugin.onInit!(context);
-  
+
   // Simulate receiving init message
   ChatPlugin.onMessage!({
     type: "init",
     clientId: "test-client-id",
     cursors: {},
   }, context);
-  
+
   // Check if history request was sent
   const messages = context._getMessages();
   assertEquals(messages.length, 1);

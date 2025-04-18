@@ -7,7 +7,7 @@ const createMockContext = () => {
   const state: any = {};
   const messages: any[] = [];
   const dirtyLayers: string[] = [];
-  
+
   return {
     clientId: "test-client-id",
     sendMessage: (message: any) => {
@@ -67,7 +67,7 @@ const mockDocument = () => {
       appendChild: () => {},
     },
   };
-  
+
   (globalThis as any).window = {
     addEventListener: () => {},
     innerWidth: 800,
@@ -78,14 +78,14 @@ const mockDocument = () => {
 Deno.test("CursorPlugin initialization", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   CursorPlugin.onInit!(context);
-  
+
   // Check if state was initialized correctly
   const state = context.getState();
   assertEquals(typeof state.cursors, "object");
-  
+
   // Check if cursor layer was marked dirty
   const dirtyLayers = context._getDirtyLayers();
   assertEquals(dirtyLayers.includes(CURSOR_LAYER), true);
@@ -94,10 +94,10 @@ Deno.test("CursorPlugin initialization", () => {
 Deno.test("CursorPlugin handles cursor updates", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   CursorPlugin.onInit!(context);
-  
+
   // Simulate receiving a cursor update
   CursorPlugin.onMessage!({
     type: "update",
@@ -106,13 +106,13 @@ Deno.test("CursorPlugin handles cursor updates", () => {
     y: 200,
     color: "#FF0000",
   }, context);
-  
+
   // Check if the cursor was updated in state
   const state = context.getState();
   assertEquals(state.cursors["other-client"].x, 100);
   assertEquals(state.cursors["other-client"].y, 200);
   assertEquals(state.cursors["other-client"].color, "#FF0000");
-  
+
   // Check if cursor layer was marked dirty
   const dirtyLayers = context._getDirtyLayers();
   assertEquals(dirtyLayers.includes(CURSOR_LAYER), true);
@@ -121,10 +121,10 @@ Deno.test("CursorPlugin handles cursor updates", () => {
 Deno.test("CursorPlugin handles init message", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   CursorPlugin.onInit!(context);
-  
+
   // Simulate receiving init message with cursors
   CursorPlugin.onMessage!({
     type: "init",
@@ -134,7 +134,7 @@ Deno.test("CursorPlugin handles init message", () => {
       "client2": { x: 300, y: 400, color: "#00FF00" },
     },
   }, context);
-  
+
   // Check if cursors were set in state
   const state = context.getState();
   assertEquals(state.cursors["client1"].x, 100);
@@ -148,13 +148,13 @@ Deno.test("CursorPlugin handles init message", () => {
 Deno.test("CursorPlugin registers layer for rendering", () => {
   mockDocument();
   const context = createMockContext();
-  
+
   // Initialize the plugin
   CursorPlugin.onInit!(context);
-  
+
   // Call onBeforeRender
   const layers = CursorPlugin.onBeforeRender!(context);
-  
+
   // Check if cursor layer is registered
   assertEquals(layers.includes(CURSOR_LAYER), true);
 });
