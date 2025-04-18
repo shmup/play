@@ -69,10 +69,16 @@ export function initializeClient(): void {
   }
 
   function render(): void {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const context = createContext();
-    for (const plugin of plugins) {
-      plugin.onRender?.(ctx, context);
+    try {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const context = createContext();
+      for (const plugin of plugins) {
+        plugin.onRender?.(ctx, context);
+      }
+    } catch (error) {
+      console.error("Render error:", error);
+      // Schedule another render attempt on failure
+      requestAnimationFrame(() => render());
     }
   }
 
@@ -107,6 +113,8 @@ export function initializeClient(): void {
       }
     }
     // Ensure render happens after all message processing
+    // Use both immediate and delayed renders to ensure content appears
+    render();
     requestAnimationFrame(() => render());
   }
 
@@ -118,8 +126,11 @@ export function initializeClient(): void {
       for (const plugin of plugins) {
         plugin.onInit?.(context);
       }
-      // Force an initial render after connection is established
+      // Force multiple renders after connection is established
+      // to ensure everything is properly displayed
       render();
+      setTimeout(() => render(), 100);
+      setTimeout(() => render(), 500);
     };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as ServerMessage;
