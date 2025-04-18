@@ -55,7 +55,7 @@ export const DrawPlugin = defineClientPlugin({
       context.sendMessage(testMessage);
 
       // Also try direct WebSocket send
-      const socket = (window as any).debugSocket;
+      const socket = (globalThis as any).debugSocket;
       if (socket && socket.readyState === WebSocket.OPEN) {
         console.log("Sending direct test draw message");
         socket.send(JSON.stringify(testMessage));
@@ -250,7 +250,7 @@ export const DrawPlugin = defineClientPlugin({
         console.log("MOUSEDOWN - Sending draw message:", x, y);
 
         // Use a direct WebSocket message to bypass any potential plugin filtering
-        const socket = (window as any).debugSocket;
+        const socket = (globalThis as any).debugSocket;
         if (socket && socket.readyState === WebSocket.OPEN) {
           const initialDrawMessage: ClientMessage = {
             type: "draw",
@@ -369,7 +369,7 @@ export const DrawPlugin = defineClientPlugin({
         );
 
         // Send through WebSocket or context
-        const socket = (window as any).debugSocket;
+        const socket = (globalThis as any).debugSocket;
         if (socket && socket.readyState === WebSocket.OPEN) {
           const drawMessage: ClientMessage = {
             type: "draw",
@@ -450,7 +450,7 @@ export const DrawPlugin = defineClientPlugin({
       console.log("MOUSEUP - Sending draw stop message");
 
       // Use a direct WebSocket message to bypass any potential plugin filtering
-      const socket = (window as any).debugSocket;
+      const socket = (globalThis as any).debugSocket;
       if (socket && socket.readyState === WebSocket.OPEN) {
         const stopDrawMessage: ClientMessage = {
           type: "draw",

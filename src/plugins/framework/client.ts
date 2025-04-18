@@ -233,7 +233,7 @@ export function initializeClient(): void {
   function connect(): void {
     ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
     // Expose WebSocket for debugging
-    (window as any).debugSocket = ws;
+    (globalThis as any).debugSocket = ws;
 
     ws.onopen = () => {
       reconnectAttempts = 0;

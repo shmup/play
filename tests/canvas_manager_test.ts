@@ -24,11 +24,9 @@ const mockDocument = () => {
     },
   };
 
-  (globalThis as any).window = {
-    addEventListener: () => {},
-    innerWidth: 800,
-    innerHeight: 600,
-  };
+  (globalThis as any).innerWidth = 800;
+  (globalThis as any).innerHeight = 600;
+  (globalThis as any).addEventListener = () => {};
 };
 
 Deno.test("CanvasManager initialization", () => {
@@ -112,9 +110,9 @@ Deno.test("CanvasManager handles resize", () => {
   // Create a layer
   const layer = manager.getLayer("test-layer");
 
-  // Change window dimensions
-  (globalThis as any).window.innerWidth = 1024;
-  (globalThis as any).window.innerHeight = 768;
+  // Change globalThis dimensions
+  (globalThis as any).innerWidth = 1024;
+  (globalThis as any).innerHeight = 768;
 
   // Trigger resize
   manager.resize();

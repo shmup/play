@@ -42,7 +42,7 @@ export const CursorPlugin = defineClientPlugin({
     sendWindowDimensions();
 
     // Also send dimensions when window is resized
-    window.addEventListener("resize", sendWindowDimensions);
+    globalThis.addEventListener("resize", sendWindowDimensions);
 
     // Listen to mouse movement if supported
     if (typeof document.addEventListener === "function") {

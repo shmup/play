@@ -72,7 +72,7 @@ const mockDocument = () => {
     },
   };
 
-  (globalThis as any).window = {
+  (globalThis as any).globalThis = {
     addEventListener: () => {},
     innerWidth: 800,
     innerHeight: 600,
