@@ -2,7 +2,7 @@
   "tasks": {
     "dev": "deno run -A --watch src/server.ts",
     "profile": "deno run --inspect -A src/server.ts",
-    "compile": "deno compile -A --include src/client.ts src/server.ts",
+    "compile": "deno compile -A --include src/client.ts src/server.ts"
   },
   "imports": {
     "@deno/emit": "jsr:@deno/emit@^0.46.0",

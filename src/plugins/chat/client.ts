@@ -3,6 +3,7 @@ import type { PluginContext } from "../framework/client.ts";
 import type { ServerMessage } from "../../types/shared.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 
+let historyRequested = false;
 export const ChatPlugin = defineClientPlugin({
   id: PLUGIN_ID,
   priority: PLUGIN_PRIORITY,
@@ -64,23 +65,51 @@ export const ChatPlugin = defineClientPlugin({
         e.preventDefault();
       }
     });
+    // Reset flag for history request on new connection
+    historyRequested = false;
   },
 
   onMessage(message: ServerMessage, context: PluginContext) {
-    if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
-      const data = message.data as { clientId: string; text: string };
-      context.setState((state) => {
-        const s = state as any;
-        if (!s.chat) s.chat = [];
-        s.chat.push({ clientId: data.clientId, text: data.text });
+    // On initial server init, request chat history once
+    if (message.type === "init" && !historyRequested) {
+      context.sendMessage({
+        type: "custom",
+        pluginId: PLUGIN_ID,
+        data: { requestHistory: true },
       });
+      historyRequested = true;
+    }
+    // Handle actual chat entries
+    if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
+      const data = message.data as any;
+      // Only handle actual chat entries (must have clientId and text)
+      if (typeof data.clientId === "string" && typeof data.text === "string") {
+        context.setState((state) => {
+          const s = state as any;
+          if (!s.chat) s.chat = [];
+          s.chat.push({ clientId: data.clientId, text: data.text });
+        });
+        // Force immediate render after receiving a chat message
+        setTimeout(() => context.forceRender(), 0);
+      } // If we received chat history (multiple messages at once), force a render
+      else if (Array.isArray(data.history) && data.history.length > 0) {
+        context.setState((state) => {
+          const s = state as any;
+          if (!s.chat) s.chat = [];
+          s.chat = [...data.history];
+        });
+        // Force immediate render after receiving chat history
+        setTimeout(() => context.forceRender(), 0);
+      }
     }
     return true;
   },
 
   onRender(ctx: CanvasRenderingContext2D, context: PluginContext) {
     const state = context.getState() as any;
-    const chats = state.chat as { clientId: string; text: string }[] | undefined;
+    const chats = state.chat as
+      | { clientId: string; text: string }[]
+      | undefined;
     if (!chats || chats.length === 0) {
       return;
     }

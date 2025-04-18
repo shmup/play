@@ -18,9 +18,17 @@ Deno.test("ChatServerPlugin onMessage broadcasts chat messages", () => {
     getState: () => ({}),
     setState: () => {},
   } as any;
-  const customMessage = { type: "custom", pluginId: "chat", data: { text: "hello world" } } as any;
+  const customMessage = {
+    type: "custom",
+    pluginId: "chat",
+    data: { text: "hello world" },
+  } as any;
   const result = ChatServerPlugin.onMessage!("client1", customMessage, context);
-  assertEquals(messages, [{ type: "custom", pluginId: "chat", data: { clientId: "client1", text: "hello world" } }]);
+  assertEquals(messages, [{
+    type: "custom",
+    pluginId: "chat",
+    data: { clientId: "client1", text: "hello world" },
+  }]);
   assertEquals(result, false);
 });
 
@@ -32,7 +40,11 @@ Deno.test("ChatServerPlugin onMessage ignores non-chat messages", () => {
     getState: () => ({}),
     setState: () => {},
   } as any;
-  const otherMessage = { type: "custom", pluginId: "other", data: { text: "test" } } as any;
+  const otherMessage = {
+    type: "custom",
+    pluginId: "other",
+    data: { text: "test" },
+  } as any;
   const result = ChatServerPlugin.onMessage!("client1", otherMessage, context);
   assertEquals(messages.length, 0);
   assertEquals(result, true);

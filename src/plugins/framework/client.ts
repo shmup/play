@@ -5,6 +5,7 @@ export interface PluginContext {
   sendMessage: (message: ClientMessage) => void;
   getState: () => AppState;
   setState: (updater: (state: AppState) => void) => void;
+  forceRender: () => void;
 }
 
 export interface AppState {
@@ -58,6 +59,10 @@ export function initializeClient(): void {
         const newState = { ...appState };
         updater(newState);
         appState = newState;
+        // Schedule a render on the next animation frame for better performance
+        requestAnimationFrame(() => render());
+      },
+      forceRender: () => {
         render();
       },
     };
@@ -101,7 +106,8 @@ export function initializeClient(): void {
         }
       }
     }
-    render();
+    // Ensure render happens after all message processing
+    requestAnimationFrame(() => render());
   }
 
   function connect(): void {
@@ -112,6 +118,8 @@ export function initializeClient(): void {
       for (const plugin of plugins) {
         plugin.onInit?.(context);
       }
+      // Force an initial render after connection is established
+      render();
     };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as ServerMessage;
