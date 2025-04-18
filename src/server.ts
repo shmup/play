@@ -13,7 +13,6 @@ import {
 const result = await bundle(new URL("./client.ts", import.meta.url));
 const clientScript = result.code;
 
-// Centralize plugin registration and state in framework/server.ts
 registerPlugin(ChatServerPlugin);
 registerPlugin(CursorServerPlugin);
 registerPlugin(DrawServerPlugin);
