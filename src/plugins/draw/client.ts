@@ -1,8 +1,13 @@
 import { defineClientPlugin } from "../framework/client.ts";
-import { ClientMessage, DrawLine, ServerMessage } from "../../types/shared.ts";
+import { DrawLine, ServerMessage } from "../../types/shared.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 import type { PluginContext } from "../framework/client.ts";
 import { DirtyRegion } from "../../utils/canvas-manager.ts";
+import {
+  sendDrawMessage,
+  setupDebugEventListeners,
+  setupDebugUI,
+} from "./debug-utils.ts";
 
 let historyRequested = false;
 
@@ -27,120 +32,6 @@ export const DrawPlugin = defineClientPlugin({
       state.pendingLines = [];
     });
 
-    const debugButton = document.createElement("button");
-    debugButton.textContent = "Test Draw";
-    debugButton.style.position = "fixed";
-    debugButton.style.bottom = "10px";
-    debugButton.style.right = "10px";
-    debugButton.style.zIndex = "1000";
-    debugButton.style.padding = "8px 12px";
-    debugButton.style.backgroundColor = "#4CAF50";
-    debugButton.style.color = "white";
-    debugButton.style.border = "none";
-    debugButton.style.borderRadius = "4px";
-    debugButton.style.cursor = "pointer";
-    debugButton.onclick = () => {
-      console.log("Sending test draw message");
-      const testMessage: ClientMessage = {
-        type: "draw",
-        x: 100,
-        y: 100,
-        isDrawing: true,
-      };
-      context.sendMessage(testMessage);
-
-      const socket = (globalThis as any).debugSocket;
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        console.log("Sending direct test draw message");
-        socket.send(JSON.stringify(testMessage));
-      }
-    };
-    document.body.appendChild(debugButton);
-
-    const debugOverlay = document.createElement("div");
-    debugOverlay.style.position = "fixed";
-    debugOverlay.style.top = "10px";
-    debugOverlay.style.right = "10px";
-    debugOverlay.style.backgroundColor = "rgba(0,0,0,0.7)";
-    debugOverlay.style.color = "white";
-    debugOverlay.style.padding = "10px";
-    debugOverlay.style.borderRadius = "5px";
-    debugOverlay.style.zIndex = "1000";
-    debugOverlay.style.fontFamily = "monospace";
-    debugOverlay.style.fontSize = "12px";
-    debugOverlay.textContent = "Mouse: 0,0 | Drawing: false";
-    document.body.appendChild(debugOverlay);
-
-    const drawToggleButton = document.createElement("button");
-    drawToggleButton.textContent = "Toggle Drawing";
-    drawToggleButton.style.position = "fixed";
-    drawToggleButton.style.bottom = "10px";
-    drawToggleButton.style.right = "100px";
-    drawToggleButton.style.zIndex = "1000";
-    drawToggleButton.style.padding = "8px 12px";
-    drawToggleButton.style.backgroundColor = "#2196F3";
-    drawToggleButton.style.color = "white";
-    drawToggleButton.style.border = "none";
-    drawToggleButton.style.borderRadius = "4px";
-    drawToggleButton.style.cursor = "pointer";
-    drawToggleButton.onclick = () => {
-      const state = context.getState() as any;
-      const isCurrentlyDrawing = state.isDrawing;
-
-      if (isCurrentlyDrawing) {
-        context.setState((state) => {
-          state.isDrawing = false;
-
-          if (
-            (state as any).pendingLines &&
-            (state as any).pendingLines.length > 0
-          ) {
-            (state as any).drawLines = [
-              ...((state as any).drawLines || []),
-              ...((state as any).pendingLines || []),
-            ];
-
-            (state as any).pendingLines = [];
-          }
-        });
-
-        debugOverlay.textContent =
-          `Mouse: ${state.lastX},${state.lastY} | Drawing: false`;
-        drawToggleButton.textContent = "Start Drawing";
-        drawToggleButton.style.backgroundColor = "#2196F3";
-      } else {
-        const rect = canvas.getBoundingClientRect();
-        const x = Math.round(rect.width / 2);
-        const y = Math.round(rect.height / 2);
-
-        context.setState((state) => {
-          state.isDrawing = true;
-          state.lastX = x;
-          state.lastY = y;
-        });
-
-        debugOverlay.textContent = `Mouse: ${x},${y} | Drawing: true`;
-        drawToggleButton.textContent = "Stop Drawing";
-        drawToggleButton.style.backgroundColor = "#F44336";
-      }
-
-      // Force redraw
-      context.markLayerDirty(ACTIVE_LAYER);
-      context.markLayerDirty(STATIC_LAYER);
-    };
-    document.body.appendChild(drawToggleButton);
-
-    if (typeof document.addEventListener === "function") {
-      document.addEventListener("mousemove", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = Math.round(e.clientX - rect.left);
-        const y = Math.round(e.clientY - rect.top);
-        const state = context.getState() as any;
-        debugOverlay.textContent =
-          `Mouse: ${x},${y} | Drawing: ${state.isDrawing}`;
-      });
-    }
-
     context.canvasManager.getLayer(STATIC_LAYER, 1);
     context.canvasManager.getLayer(ACTIVE_LAYER, 2);
 
@@ -152,6 +43,23 @@ export const DrawPlugin = defineClientPlugin({
       // fallback: get default 'main' layer canvas
       const mainLayer = context.canvasManager.getLayer("main");
       canvas = (mainLayer && (mainLayer as any).canvas) as HTMLCanvasElement;
+    }
+
+    // Setup debug UI and get the debug overlay reference
+    const { debugOverlay, updateDebugOverlay } = setupDebugUI(context, canvas);
+
+    // Setup debug event listeners
+    setupDebugEventListeners(canvas);
+
+    // Add mousemove listener to update debug overlay
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.round(e.clientX - rect.left);
+        const y = Math.round(e.clientY - rect.top);
+        const state = context.getState() as any;
+        updateDebugOverlay(x, y, state.isDrawing);
+      });
     }
 
     // mouse down event - start drawing (if supported)
@@ -230,38 +138,8 @@ export const DrawPlugin = defineClientPlugin({
           height: PADDING * 2,
         });
 
-        // send initial draw position using draw message type
-        console.log("MOUSEDOWN - Sending draw message:", x, y);
-
-        // use a direct websocket message to bypass any potential plugin filtering
-        const socket = (globalThis as any).debugSocket;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          const initialDrawMessage: ClientMessage = {
-            type: "draw",
-            x,
-            y,
-            isDrawing: true,
-          };
-          console.log(
-            "Sending direct draw message:",
-            JSON.stringify(initialDrawMessage),
-          );
-          socket.send(JSON.stringify(initialDrawMessage));
-          console.log("Direct draw message sent successfully");
-        } else {
-          // fallback to normal send
-          const initialDrawMessage: ClientMessage = {
-            type: "draw",
-            x,
-            y,
-            isDrawing: true,
-          };
-          console.log(
-            "Sending initial draw message:",
-            JSON.stringify(initialDrawMessage),
-          );
-          context.sendMessage(initialDrawMessage);
-        }
+        // send initial draw position
+        sendDrawMessage(context, x, y, true, "mousedown");
 
         // Force a redraw of the active layer
         context.markLayerDirty(ACTIVE_LAYER);
@@ -346,31 +224,8 @@ export const DrawPlugin = defineClientPlugin({
           `Drew line from (${state.lastX},${state.lastY}) to (${x},${y})`,
         );
 
-        // Send through WebSocket or context
-        const socket = (globalThis as any).debugSocket;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          const drawMessage: ClientMessage = {
-            type: "draw",
-            x,
-            y,
-            isDrawing: true,
-          };
-          console.log(
-            "Sending direct draw message:",
-            JSON.stringify(drawMessage),
-          );
-          socket.send(JSON.stringify(drawMessage));
-        } else {
-          // Fallback to normal send
-          const drawMessage: ClientMessage = {
-            type: "draw",
-            x,
-            y,
-            isDrawing: true,
-          };
-          console.log("Sending draw message:", JSON.stringify(drawMessage));
-          context.sendMessage(drawMessage);
-        }
+        // Send draw message
+        sendDrawMessage(context, x, y, true, "mousemove");
       });
     }
 
@@ -398,8 +253,7 @@ export const DrawPlugin = defineClientPlugin({
         state.isDrawing = false;
 
         // Update debug overlay immediately
-        debugOverlay.textContent =
-          `Mouse: ${state.lastX},${state.lastY} | Drawing: false`;
+        updateDebugOverlay(state.lastX, state.lastY, false);
 
         // Commit pending lines to static layer
         if (
@@ -425,36 +279,7 @@ export const DrawPlugin = defineClientPlugin({
       });
 
       // Send stop drawing message
-      console.log("MOUSEUP - Sending draw stop message");
-
-      // Use a direct WebSocket message to bypass any potential plugin filtering
-      const socket = (globalThis as any).debugSocket;
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        const stopDrawMessage: ClientMessage = {
-          type: "draw",
-          x: state.lastX, // Use the last position instead of 0,0
-          y: state.lastY,
-          isDrawing: false,
-        };
-        console.log(
-          "Sending direct draw message:",
-          JSON.stringify(stopDrawMessage),
-        );
-        socket.send(JSON.stringify(stopDrawMessage));
-      } else {
-        // Fallback to normal send
-        const stopDrawMessage: ClientMessage = {
-          type: "draw",
-          x: state.lastX, // Use the last position instead of 0,0
-          y: state.lastY,
-          isDrawing: false,
-        };
-        console.log(
-          "Sending stop draw message:",
-          JSON.stringify(stopDrawMessage),
-        );
-        context.sendMessage(stopDrawMessage);
-      }
+      sendDrawMessage(context, state.lastX, state.lastY, false, "mouseup");
     };
 
     // Stop drawing on mouse up or leave if supported
@@ -463,10 +288,7 @@ export const DrawPlugin = defineClientPlugin({
       document.addEventListener("mouseleave", stopDrawing);
     }
 
-    // Debug mouse events
-    canvas.addEventListener("click", (e) => {
-      console.log("CANVAS CLICK EVENT", e.clientX, e.clientY);
-    });
+    // Debug event listeners are now handled by setupDebugEventListeners
   },
 
   onMessage(message: ServerMessage, context: PluginContext) {
