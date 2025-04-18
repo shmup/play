@@ -1,5 +1,10 @@
 import { bundle } from "jsr:@deno/emit";
-import type { ClientMessage, CursorState, ServerMessage } from "./shared.ts";
+import type { ClientMessage, ServerMessage } from "./types/shared.ts";
+import type {
+  ClientMessage,
+  CursorState,
+  ServerMessage,
+} from "./types/shared.ts";
 
 const result = await bundle(new URL("./client.ts", import.meta.url));
 const clientScript = result.code;
