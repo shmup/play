@@ -22,7 +22,7 @@ export interface ServerPluginContext {
 
 export interface ServerAppState {
   clients: Map<string, ClientState>;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface ClientState {

@@ -1,4 +1,4 @@
-import { ClientMessage } from "./shared.ts";
+import { ClientMessage, CursorState } from "./shared.ts";
 
 export interface AppState {
   cursors: Record<string, CursorState>;
