@@ -1,5 +1,15 @@
 import { PluginContext } from "../framework/client.ts";
-import { ClientMessage } from "../../types/shared.ts";
+import type { ClientMessage } from "../../types/shared.ts";
+import type { DrawLine } from "./shared.ts";
+
+// Client plugin state for debug operations
+type DrawClientState = {
+  drawLines?: DrawLine[];
+  pendingLines?: DrawLine[];
+  isDrawing: boolean;
+  lastX: number;
+  lastY: number;
+};
 
 /**
  * Creates and attaches debug UI elements for the draw plugin
@@ -34,7 +44,7 @@ export function setupDebugUI(
     };
     context.sendMessage(testMessage);
 
-    const socket = (globalThis as any).debugSocket;
+    const socket = (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
     if (socket && socket.readyState === WebSocket.OPEN) {
       console.log("Sending direct test draw message");
       socket.send(JSON.stringify(testMessage));
@@ -71,23 +81,16 @@ export function setupDebugUI(
   drawToggleButton.style.borderRadius = "4px";
   drawToggleButton.style.cursor = "pointer";
   drawToggleButton.onclick = () => {
-    const state = context.getState() as any;
+    const state = context.getState() as unknown as DrawClientState;
     const isCurrentlyDrawing = state.isDrawing;
 
     if (isCurrentlyDrawing) {
       context.setState((state) => {
-        state.isDrawing = false;
-
-        if (
-          (state as any).pendingLines &&
-          (state as any).pendingLines.length > 0
-        ) {
-          (state as any).drawLines = [
-            ...((state as any).drawLines || []),
-            ...((state as any).pendingLines || []),
-          ];
-
-          (state as any).pendingLines = [];
+        const s = state as unknown as DrawClientState;
+        s.isDrawing = false;
+        if (s.pendingLines && s.pendingLines.length > 0) {
+          s.drawLines = [...(s.drawLines || []), ...(s.pendingLines || [])];
+          s.pendingLines = [];
         }
       });
 
@@ -145,7 +148,7 @@ export function sendDrawMessage(
   };
 
   // Try direct WebSocket first for better performance
-  const socket = (globalThis as any).debugSocket;
+  const socket = (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
   if (socket && socket.readyState === WebSocket.OPEN) {
     console.log("Sending direct draw message:", JSON.stringify(drawMessage));
     socket.send(JSON.stringify(drawMessage));

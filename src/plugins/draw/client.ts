@@ -1,13 +1,24 @@
 import { defineClientPlugin } from "../framework/client.ts";
-import { DrawLine, ServerMessage } from "../../types/shared.ts";
+import { DrawLine, ServerMessage, CursorState } from "../../types/shared.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 import type { PluginContext } from "../framework/client.ts";
-import { DirtyRegion } from "../../utils/canvas-manager.ts";
+import type { DirtyRegion, CanvasLayer } from "../../utils/canvas-manager.ts";
 import {
   sendDrawMessage,
   setupDebugEventListeners,
   setupDebugUI,
 } from "./debug-utils.ts";
+
+type DrawClientState = {
+  drawLines?: DrawLine[];
+  pendingLines?: DrawLine[];
+  isDrawing: boolean;
+  lastX: number;
+  lastY: number;
+  cursors?: Record<string, CursorState>;
+};
+
+import type { DrawServerMessageData } from "./shared.ts";
 
 let historyRequested = false;
 
@@ -41,8 +52,8 @@ export const DrawPlugin = defineClientPlugin({
       canvas = context.canvasManager.getMainCanvas();
     } else {
       // fallback: get default 'main' layer canvas
-      const mainLayer = context.canvasManager.getLayer("main");
-      canvas = (mainLayer && (mainLayer as any).canvas) as HTMLCanvasElement;
+      const mainLayer = context.canvasManager.getLayer("main") as CanvasLayer;
+      canvas = mainLayer.canvas;
     }
 
     // Setup debug UI and get the debug overlay reference
@@ -57,7 +68,7 @@ export const DrawPlugin = defineClientPlugin({
         const rect = canvas.getBoundingClientRect();
         const x = Math.round(e.clientX - rect.left);
         const y = Math.round(e.clientY - rect.top);
-        const state = context.getState() as any;
+        const state = context.getState() as unknown as DrawClientState;
         updateDebugOverlay(x, y, state.isDrawing);
       });
     }
@@ -101,13 +112,14 @@ export const DrawPlugin = defineClientPlugin({
         console.log("MOUSEDOWN EVENT CAPTURED", x, y);
 
         // get current cursor color
-        const state = context.getState() as any;
+        const state = context.getState() as unknown as DrawClientState;
         const color = state.cursors?.[context.clientId]?.color || "#000000";
 
         context.setState((state) => {
-          state.isDrawing = true;
-          state.lastX = x;
-          state.lastY = y;
+          const s = state as unknown as DrawClientState;
+          s.isDrawing = true;
+          s.lastX = x;
+          s.lastY = y;
         });
 
         // update debug overlay immediately
@@ -124,10 +136,8 @@ export const DrawPlugin = defineClientPlugin({
         };
 
         context.setState((state) => {
-          (state as any).pendingLines = [
-            ...((state as any).pendingLines || []),
-            dot,
-          ];
+          const s = state as unknown as DrawClientState;
+          s.pendingLines = [...(s.pendingLines || []), dot];
         });
 
         // mark the active layer as dirty
@@ -150,7 +160,7 @@ export const DrawPlugin = defineClientPlugin({
 
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousemove", (e) => {
-        const state = context.getState() as any;
+        const state = context.getState() as unknown as DrawClientState;
         if (!state.isDrawing) return;
 
         console.log("RAW MOUSEMOVE EVENT - isDrawing:", state.isDrawing);
@@ -196,12 +206,10 @@ export const DrawPlugin = defineClientPlugin({
 
         // Add to pending lines
         context.setState((state) => {
-          (state as any).pendingLines = [
-            ...((state as any).pendingLines || []),
-            line,
-          ];
-          state.lastX = x;
-          state.lastY = y;
+          const s = state as unknown as DrawClientState;
+          s.pendingLines = [...(s.pendingLines || []), line];
+          s.lastX = x;
+          s.lastY = y;
         });
 
         // Mark the active layer as dirty in this region
@@ -231,7 +239,7 @@ export const DrawPlugin = defineClientPlugin({
 
     // Mouse up and mouse leave events - stop drawing
     const stopDrawing = (e: MouseEvent) => {
-      const state = context.getState() as any;
+      const state = context.getState() as unknown as DrawClientState;
       if (!state.isDrawing) return;
 
       // Check if we're interacting with UI elements
@@ -250,30 +258,20 @@ export const DrawPlugin = defineClientPlugin({
       console.log("STOP DRAWING EVENT CAPTURED");
 
       context.setState((state) => {
-        state.isDrawing = false;
-
+        const s = state as unknown as DrawClientState;
+        s.isDrawing = false;
         // Update debug overlay immediately
-        updateDebugOverlay(state.lastX, state.lastY, false);
-
+        updateDebugOverlay(s.lastX, s.lastY, false);
         // Commit pending lines to static layer
-        if (
-          (state as any).pendingLines && (state as any).pendingLines.length > 0
-        ) {
+        if (s.pendingLines && s.pendingLines.length > 0) {
           // Add pending lines to permanent lines
-          (state as any).drawLines = [
-            ...((state as any).drawLines || []),
-            ...((state as any).pendingLines || []),
-          ];
-
+          s.drawLines = [...(s.drawLines || []), ...(s.pendingLines || [])];
           // Mark static layer as dirty
           context.markLayerDirty(STATIC_LAYER);
-
           // Clear active layer since we're committing to static
           context.markLayerDirty(ACTIVE_LAYER);
-
           // Clear pending lines after commit
-          (state as any).pendingLines = [];
-
+          s.pendingLines = [];
           console.log("Drawing ended, committed lines to static layer");
         }
       });
@@ -304,7 +302,8 @@ export const DrawPlugin = defineClientPlugin({
       // If server sent lines with init message
       if (message.lines) {
         context.setState((state) => {
-          (state as any).drawLines = message.lines;
+          const s = state as unknown as DrawClientState;
+          s.drawLines = message.lines;
         });
         // Mark static layer as dirty to redraw all lines
         context.markLayerDirty(STATIC_LAYER);
@@ -337,12 +336,10 @@ export const DrawPlugin = defineClientPlugin({
       };
 
       context.setState((state) => {
-        (state as any).drawLines = [...((state as any).drawLines || []), line];
+        const s = state as unknown as DrawClientState;
+        s.drawLines = [...(s.drawLines || []), line];
         // Add to pending lines that will be drawn on active layer
-        (state as any).pendingLines = [
-          ...((state as any).pendingLines || []),
-          line,
-        ];
+        s.pendingLines = [...(s.pendingLines || []), line];
       });
 
       // Mark only the affected region as dirty
@@ -354,12 +351,21 @@ export const DrawPlugin = defineClientPlugin({
 
     // Handle custom messages with drawing history or draw actions
     if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
-      const data = message.data as any;
+      const data = message.data as DrawServerMessageData & {
+        action?: "drawUpdate";
+        clientId?: string;
+        x?: number;
+        y?: number;
+        prevX?: number;
+        prevY?: number;
+        color?: string;
+      };
 
       // Handle history response
       if (data.lines) {
         context.setState((state) => {
-          (state as any).drawLines = data.lines;
+          const s = state as unknown as DrawClientState;
+          s.drawLines = data.lines;
         });
         // Mark static layer as dirty to redraw all lines
         context.markLayerDirty(STATIC_LAYER);
@@ -370,12 +376,12 @@ export const DrawPlugin = defineClientPlugin({
         console.log("Received custom drawUpdate:", data);
 
         const line: DrawLine = {
-          clientId: data.clientId,
-          startX: data.prevX,
-          startY: data.prevY,
-          endX: data.x,
-          endY: data.y,
-          color: data.color,
+          clientId: data.clientId!,
+          startX: data.prevX!,
+          startY: data.prevY!,
+          endX: data.x!,
+          endY: data.y!,
+          color: data.color!,
         };
 
         // Calculate dirty region for this line
@@ -387,15 +393,10 @@ export const DrawPlugin = defineClientPlugin({
         };
 
         context.setState((state) => {
-          (state as any).drawLines = [
-            ...((state as any).drawLines || []),
-            line,
-          ];
+          const s = state as unknown as DrawClientState;
+          s.drawLines = [...(s.drawLines || []), line];
           // Add to pending lines that will be drawn on active layer
-          (state as any).pendingLines = [
-            ...((state as any).pendingLines || []),
-            line,
-          ];
+          s.pendingLines = [...(s.pendingLines || []), line];
         });
 
         // Mark only the affected region as dirty
@@ -407,7 +408,7 @@ export const DrawPlugin = defineClientPlugin({
     }
   },
 
-  onBeforeRender(context: PluginContext): string[] {
+  onBeforeRender(_context: PluginContext): string[] {
     // Register our layers for rendering
     return [STATIC_LAYER, ACTIVE_LAYER];
   },
@@ -417,7 +418,7 @@ export const DrawPlugin = defineClientPlugin({
     ctx: CanvasRenderingContext2D,
     context: PluginContext,
   ) {
-    const state = context.getState() as any;
+    const state = context.getState() as unknown as DrawClientState;
 
     if (layerId === STATIC_LAYER) {
       // Draw all permanent lines on the static layer
