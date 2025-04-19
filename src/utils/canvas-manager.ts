@@ -36,8 +36,8 @@ export class CanvasManager {
   private scrollSpeed: number = 10;
   private isScrolling: boolean = false;
   private scrollDirection = { x: 0, y: 0 };
-  private scrollThreshold = 50; // pixels from edge to trigger scrolling
-  private maxScrollDistance = 10000; // maximum scroll distance in any direction
+  private scrollThreshold = 96; // Pixels from edge to trigger scrolling (increased from 50 for smoother/more-anticipatory scroll)
+  private maxScrollDistance = 10000;
 
   constructor(containerId: string) {
     this.container = document.getElementById(containerId) || document.body;
@@ -69,13 +69,6 @@ export class CanvasManager {
   private updateViewport(): void {
     if (!this.isScrolling) return;
 
-    // For intuitive drawing, we invert the scroll direction:
-    // When the cursor is at the bottom, scroll the viewport DOWN (ie, move drawing area UP),
-    // so that drawing can continue downwards as expected.
-    // Therefore, when scrollDirection.y > 0 (cursor at bottom), we should INCREASE viewport.y
-    // (scroll down); conversely, when scrollDirection.y < 0 (cursor at top), we should DECREASE viewport.y (scroll up).
-    // The same logic applies for X/left/right.
-    // So, instead of subtracting, we ADD scrollDirection * scrollSpeed
     const newX = this.viewport.x + (this.scrollDirection.x * this.scrollSpeed);
     const newY = this.viewport.y + (this.scrollDirection.y * this.scrollSpeed);
 
@@ -211,11 +204,11 @@ export class CanvasManager {
    */
   private calculateScrollDirection(pos: number, min: number, max: number): number {
     if (pos < min + this.scrollThreshold) {
-      return -1; // Scroll negative direction (move viewport UP/LEFT when cursor at top/left)
+      return -1;
     } else if (pos > max - this.scrollThreshold) {
-      return 1;  // Scroll positive direction (move viewport DOWN/RIGHT when cursor at bottom/right)
+      return 1;
     }
-    return 0;    // No scrolling
+    return 0;
   }
   
   /**
