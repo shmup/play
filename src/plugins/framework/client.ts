@@ -1,5 +1,18 @@
 import type { ClientMessage, ServerMessage } from "../../types/shared.ts";
 import { CanvasManager } from "../../utils/canvas-manager.ts";
+import type { DirtyRegion } from "../../utils/canvas-manager.ts";
+
+export interface PluginCanvasLayer {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D | null;
+}
+
+export interface PluginCanvasManager {
+  getLayer(layerId: string, zIndex?: number): PluginCanvasLayer;
+  markDirty(layerId: string, region?: DirtyRegion): void;
+  getMainCanvas?(): HTMLCanvasElement;
+  getDimensions?(): { width: number; height: number };
+}
 
 export interface PluginContext {
   clientId: string;
@@ -7,16 +20,14 @@ export interface PluginContext {
   getState: () => AppState;
   setState: (updater: (state: AppState) => void) => void;
   forceRender: () => void;
-  // The canvasManager may be any object implementing necessary methods (getLayer, markDirty, getDimensions, etc.)
-  canvasManager: any;
+  // The canvas manager for layered rendering and dirty region tracking
+  canvasManager: PluginCanvasManager;
   // Mark a layer as dirty; region parameter is optional
-  markLayerDirty: (...args: any[]) => void;
+  markLayerDirty: (layerId: string, region?: DirtyRegion) => void;
 }
 
-/**
- * Application state is a dynamic key-value store for plugins
- */
 export interface AppState {
+  // deno-lint-ignore no-explicit-any
   [key: string]: any;
 }
 
@@ -231,7 +242,7 @@ export function initializeClient(): void {
   function connect(): void {
     ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
     // Expose WebSocket for debugging
-    (globalThis as any).debugSocket = ws;
+    (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket = ws;
 
     ws.onopen = () => {
       reconnectAttempts = 0;

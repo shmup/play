@@ -51,8 +51,7 @@ export const DrawPlugin = defineClientPlugin({
     if (typeof context.canvasManager.getMainCanvas === "function") {
       canvas = context.canvasManager.getMainCanvas();
     } else {
-      // fallback: get default 'main' layer canvas
-      const mainLayer = context.canvasManager.getLayer("main") as CanvasLayer;
+      const mainLayer = context.canvasManager.getLayer("main") as unknown as CanvasLayer;
       canvas = mainLayer.canvas;
     }
 
@@ -219,7 +218,8 @@ export const DrawPlugin = defineClientPlugin({
         console.log("MOUSEMOVE - Sending draw message:", x, y);
 
         // Draw the line locally immediately for responsive feedback
-        const ctx = context.canvasManager.getLayer(ACTIVE_LAYER).ctx;
+        // Assert non-null context for drawing
+        const ctx = context.canvasManager.getLayer(ACTIVE_LAYER).ctx!;
         ctx.beginPath();
         ctx.moveTo(state.lastX, state.lastY);
         ctx.lineTo(x, y);
