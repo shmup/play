@@ -71,7 +71,7 @@ export const DrawPlugin = defineClientPlugin({
     }
 
     // Setup debug UI and get the debug overlay reference
-    const { debugOverlay, updateDebugOverlay } = setupDebugUI(context, canvas);
+    const { debugOverlay, updateDebugOverlay } = setupDebugUI();
 
     // Setup debug event listeners
     setupDebugEventListeners(canvas);
