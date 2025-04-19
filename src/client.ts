@@ -10,15 +10,22 @@ import { createContextMenuPlugin } from "./plugins/contextmenu/index.ts";
 registerPlugin(ChatPlugin);
 registerPlugin(CursorPlugin);
 registerPlugin(DrawPlugin);
-// Context menu plugin with custom actions
 registerPlugin(
   createContextMenuPlugin([
     {
       label: "Clear Canvas",
       value: "clearCanvas",
       onClick: (context) => {
-        // send a custom message; handle on server if desired
-        context.sendMessage({ type: "custom", pluginId: "contextmenu", data: { action: "clearCanvas" } });
+        // (1) directly clear local canvas
+        if (typeof window !== "undefined") {
+          globalThis.dispatchEvent(new Event("ClearCanvas"));
+        }
+        // (2) notify draw plugin via custom message for possible cross-client action
+        context.sendMessage({
+          type: "custom",
+          pluginId: "contextmenu",
+          data: { action: "clearCanvas" },
+        });
       },
     },
     {
@@ -28,6 +35,6 @@ registerPlugin(
         console.log("App state:", context.getState());
       },
     },
-  ])
+  ]),
 );
 initializeClient();

@@ -14,7 +14,7 @@ export interface ContextMenuOption {
   onClick?: (
     context: PluginContext,
     option: ContextMenuOption,
-    event: MouseEvent
+    event: MouseEvent,
   ) => void;
 }
 
