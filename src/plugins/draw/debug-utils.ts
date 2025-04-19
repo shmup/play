@@ -44,7 +44,8 @@ export function setupDebugUI(
     };
     context.sendMessage(testMessage);
 
-    const socket = (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
+    const socket =
+      (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
     if (socket && socket.readyState === WebSocket.OPEN) {
       console.log("Sending direct test draw message");
       socket.send(JSON.stringify(testMessage));
@@ -148,7 +149,8 @@ export function sendDrawMessage(
   };
 
   // Try direct WebSocket first for better performance
-  const socket = (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
+  const socket =
+    (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
   if (socket && socket.readyState === WebSocket.OPEN) {
     console.log("Sending direct draw message:", JSON.stringify(drawMessage));
     socket.send(JSON.stringify(drawMessage));

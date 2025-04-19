@@ -27,7 +27,11 @@ export const CursorServerPlugin: ServerPlugin = {
 
     context.setState((state: ServerAppState) => {
       if (!state.cursors) state.cursors = {};
-      (state.cursors as Record<string, CursorState>)[clientId] = { x: defaultX, y: defaultY, color };
+      (state.cursors as Record<string, CursorState>)[clientId] = {
+        x: defaultX,
+        y: defaultY,
+        color,
+      };
     });
 
     // Send current cursor positions to new client
@@ -69,14 +73,20 @@ export const CursorServerPlugin: ServerPlugin = {
     // Handle windowSize update (custom client message)
     if (
       message.type === "custom" && message.pluginId === PLUGIN_ID &&
-      typeof (message.data as { windowSize?: { width: number; height: number } }).windowSize === "object"
+      typeof (message.data as {
+          windowSize?: { width: number; height: number };
+        }).windowSize === "object"
     ) {
-      const windowSize = (message.data as { windowSize?: { width: number; height: number } }).windowSize;
+      const windowSize =
+        (message.data as { windowSize?: { width: number; height: number } })
+          .windowSize;
       if (windowSize) {
         const centerX = Math.floor(windowSize.width / 2);
         const centerY = Math.floor(windowSize.height / 2);
         const state = context.getState();
-        const cursorState = (state.cursors as Record<string, CursorState> | undefined)?.[clientId];
+        const cursorState =
+          (state.cursors as Record<string, CursorState> | undefined)
+            ?.[clientId];
 
         if (cursorState) {
           // update server state with centered position

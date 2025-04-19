@@ -7,7 +7,10 @@ import type { CursorState } from "../../types/shared.ts";
 // Define our server plugin state shape
 type DrawServerState = {
   drawLines?: DrawLine[];
-  clientDrawStates?: Record<string, { isDrawing: boolean; lastX: number; lastY: number }>;
+  clientDrawStates?: Record<
+    string,
+    { isDrawing: boolean; lastX: number; lastY: number }
+  >;
   cursors?: Record<string, CursorState>;
 };
 

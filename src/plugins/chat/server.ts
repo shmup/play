@@ -2,8 +2,8 @@ import type { ClientMessage } from "../../types/shared.ts";
 import type { ServerPlugin, ServerPluginContext } from "../../types/server.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 import type {
-  ChatPluginState,
   ChatClientMessageData,
+  ChatPluginState,
   ChatServerMessageData,
 } from "./shared.ts";
 
@@ -25,10 +25,12 @@ export const ChatServerPlugin: ServerPlugin = {
   ) {
     // Handle chat plugin messages
     if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
-      const data = message.data as ChatClientMessageData & { requestHistory?: boolean };
+      const data = message.data as ChatClientMessageData & {
+        requestHistory?: boolean;
+      };
       // Client requests history
       if (data.requestHistory) {
-      const state = context.getState() as unknown as ChatPluginState;
+        const state = context.getState() as unknown as ChatPluginState;
         const chats = state.chat as ChatServerMessageData[] | undefined;
         if (chats && chats.length > 0) {
           for (const chatData of chats) {

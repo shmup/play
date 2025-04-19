@@ -1,13 +1,26 @@
 import { defineClientPlugin } from "../framework/client.ts";
-import { DrawLine, ServerMessage, CursorState } from "../../types/shared.ts";
+import { CursorState, DrawLine, ServerMessage } from "../../types/shared.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
 import type { PluginContext } from "../framework/client.ts";
-import type { DirtyRegion, CanvasLayer } from "../../utils/canvas-manager.ts";
+import type { CanvasLayer, DirtyRegion } from "../../utils/canvas-manager.ts";
 import {
   sendDrawMessage,
   setupDebugEventListeners,
   setupDebugUI,
 } from "./debug-utils.ts";
+
+// ADDED: Clear canvas support
+function clearDrawState(context: PluginContext) {
+  context.setState((state) => {
+    const s = state as DrawClientState;
+    s.drawLines = [];
+    s.pendingLines = [];
+  });
+  context.markLayerDirty(STATIC_LAYER);
+  context.markLayerDirty(ACTIVE_LAYER);
+}
+
+// END ADDED
 
 type DrawClientState = {
   drawLines?: DrawLine[];
@@ -51,7 +64,9 @@ export const DrawPlugin = defineClientPlugin({
     if (typeof context.canvasManager.getMainCanvas === "function") {
       canvas = context.canvasManager.getMainCanvas();
     } else {
-      const mainLayer = context.canvasManager.getLayer("main") as unknown as CanvasLayer;
+      const mainLayer = context.canvasManager.getLayer(
+        "main",
+      ) as unknown as CanvasLayer;
       canvas = mainLayer.canvas;
     }
 
@@ -287,6 +302,13 @@ export const DrawPlugin = defineClientPlugin({
     }
 
     // Debug event listeners are now handled by setupDebugEventListeners
+
+    // Listen for clear canvas action via context menu (client-only message)
+    if (typeof window !== "undefined") {
+      globalThis.addEventListener("ClearCanvas", () => {
+        clearDrawState(context);
+      });
+    }
   },
 
   onMessage(message: ServerMessage, context: PluginContext) {
@@ -406,6 +428,13 @@ export const DrawPlugin = defineClientPlugin({
         context.markLayerDirty(STATIC_LAYER, dirtyRegion);
       }
     }
+    if (
+      message.type === "custom" && message.pluginId === "contextmenu" &&
+      (message.data as any)?.action === "clearCanvas"
+    ) {
+      clearDrawState(context);
+    }
+    // END ADDED
   },
 
   onBeforeRender(_context: PluginContext): string[] {

@@ -85,7 +85,9 @@ export const ChatPlugin = defineClientPlugin({
       historyRequested = true;
     }
     if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
-      const data = message.data as ChatServerMessageData & { history?: ChatServerMessageData[] };
+      const data = message.data as ChatServerMessageData & {
+        history?: ChatServerMessageData[];
+      };
       // only handle actual chat entries (must have clientId and text)
       if (typeof data.clientId === "string" && typeof data.text === "string") {
         context.setState((state) => {

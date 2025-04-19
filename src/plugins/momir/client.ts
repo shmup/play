@@ -50,7 +50,10 @@ export const MomirPlugin = defineClientPlugin({
       let menuEl: HTMLDivElement | null = null;
       document.addEventListener("contextmenu", (e) => {
         // Only pop menu for lobby 2 and only on main canvas
-        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
+        const state = context.getState() as {
+          activeLobby?: number;
+          momir: MomirCardState;
+        };
         if (state.activeLobby !== 2) return;
         if (!(e.target instanceof HTMLCanvasElement)) return;
         e.preventDefault();
@@ -83,7 +86,7 @@ export const MomirPlugin = defineClientPlugin({
             menuEl = null;
             // Generate card via scryfall momir
             const card: ScryfallCard = await fetch(
-              `https://api.scryfall.com/cards/random?q=is:token+is:unique+cmc%3D${i}&format=json`
+              `https://api.scryfall.com/cards/random?q=is:token+is:unique+cmc%3D${i}&format=json`,
             ).then((x) => x.json());
             context.setState((state) => {
               (state as { momir: MomirCardState }).momir.card = card;
@@ -92,7 +95,9 @@ export const MomirPlugin = defineClientPlugin({
           };
           menuEl.appendChild(item);
         }
-        menuEl.oncontextmenu = (evt) => { evt.preventDefault(); };
+        menuEl.oncontextmenu = (evt) => {
+          evt.preventDefault();
+        };
         document.body.appendChild(menuEl);
         // Dismiss when clicked elsewhere
         setTimeout(() => {
@@ -101,13 +106,16 @@ export const MomirPlugin = defineClientPlugin({
             menuEl = null;
             document.removeEventListener("mousedown", removeMenu);
           };
-          document.addEventListener("mousedown", removeMenu, { once: true })
+          document.addEventListener("mousedown", removeMenu, { once: true });
         }, 1);
       });
 
       // Drag logic for card
       document.addEventListener("mousedown", (e) => {
-        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
+        const state = context.getState() as {
+          activeLobby?: number;
+          momir: MomirCardState;
+        };
         if (state.activeLobby !== 2) return;
         const m = state.momir;
         if (m.card) {
@@ -128,7 +136,10 @@ export const MomirPlugin = defineClientPlugin({
         }
       });
       document.addEventListener("mousemove", (e) => {
-        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
+        const state = context.getState() as {
+          activeLobby?: number;
+          momir: MomirCardState;
+        };
         if (state.activeLobby !== 2) return;
         const m = state.momir;
         if (m.card && m.dragging) {
@@ -141,7 +152,10 @@ export const MomirPlugin = defineClientPlugin({
         }
       });
       document.addEventListener("mouseup", () => {
-        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
+        const state = context.getState() as {
+          activeLobby?: number;
+          momir: MomirCardState;
+        };
         if (state.activeLobby !== 2) return;
         const m = state.momir;
         if (m.card && m.dragging) {
@@ -155,8 +169,15 @@ export const MomirPlugin = defineClientPlugin({
     }
   },
 
-  onRenderLayer(_layerId, ctx: CanvasRenderingContext2D, context: PluginContext) {
-    const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
+  onRenderLayer(
+    _layerId,
+    ctx: CanvasRenderingContext2D,
+    context: PluginContext,
+  ) {
+    const state = context.getState() as {
+      activeLobby?: number;
+      momir: MomirCardState;
+    };
     if (state.activeLobby !== 2) return;
     const m = state.momir;
     if (!m.card) return;
