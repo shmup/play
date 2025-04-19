@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from "../../types/shared.ts";
+import type { ServerMessage } from "../../types/shared.ts";
 import type {
   ClientState,
   ServerAppState,

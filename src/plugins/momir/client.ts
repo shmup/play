@@ -48,7 +48,6 @@ export const MomirPlugin = defineClientPlugin({
     // Only render context menu for lobby 2!
     if (typeof document.addEventListener === "function") {
       let menuEl: HTMLDivElement | null = null;
-      let visible = false;
       document.addEventListener("contextmenu", (e) => {
         // Only pop menu for lobby 2 and only on main canvas
         const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
@@ -58,7 +57,6 @@ export const MomirPlugin = defineClientPlugin({
         if (menuEl) {
           menuEl.remove();
           menuEl = null;
-          visible = false;
         }
         menuEl = document.createElement("div");
         menuEl.style.position = "fixed";
@@ -83,7 +81,6 @@ export const MomirPlugin = defineClientPlugin({
           item.onclick = async () => {
             menuEl?.remove();
             menuEl = null;
-            visible = false;
             // Generate card via scryfall momir
             const card: ScryfallCard = await fetch(
               `https://api.scryfall.com/cards/random?q=is:token+is:unique+cmc%3D${i}&format=json`
@@ -97,13 +94,11 @@ export const MomirPlugin = defineClientPlugin({
         }
         menuEl.oncontextmenu = (evt) => { evt.preventDefault(); };
         document.body.appendChild(menuEl);
-        visible = true;
         // Dismiss when clicked elsewhere
         setTimeout(() => {
           const removeMenu = () => {
             menuEl?.remove();
             menuEl = null;
-            visible = false;
             document.removeEventListener("mousedown", removeMenu);
           };
           document.addEventListener("mousedown", removeMenu, { once: true })
@@ -145,7 +140,7 @@ export const MomirPlugin = defineClientPlugin({
           context.forceRender();
         }
       });
-      document.addEventListener("mouseup", (e) => {
+      document.addEventListener("mouseup", () => {
         const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
         if (state.activeLobby !== 2) return;
         const m = state.momir;
@@ -202,7 +197,7 @@ export const MomirPlugin = defineClientPlugin({
     }
   },
 
-  onBeforeRender(context: PluginContext): string[] {
+  onBeforeRender(_context: PluginContext): string[] {
     // Always overlay on MAIN layer
     return ["main"];
   },

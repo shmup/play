@@ -1,8 +1,6 @@
-import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals } from "@std/assert";
 import { CursorServerPlugin } from "../src/plugins/cursors/server.ts";
-import { PLUGIN_ID } from "../src/plugins/cursors/shared.ts";
 
-// Mock ServerPluginContext
 const createMockContext = () => {
   const state: any = {};
   const broadcastMessages: any[] = [];
