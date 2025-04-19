@@ -44,9 +44,7 @@ export function sendDrawMessage(
   x: number,
   y: number,
   isDrawing: boolean,
-  messageType: string = "draw",
 ): void {
-  console.log(`Sending ${messageType} message:`, x, y, isDrawing);
 
   const drawMessage: ClientMessage = {
     type: "draw",
@@ -59,14 +57,8 @@ export function sendDrawMessage(
   const socket =
     (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket;
   if (socket && socket.readyState === WebSocket.OPEN) {
-    console.log("Sending direct draw message:", JSON.stringify(drawMessage));
     socket.send(JSON.stringify(drawMessage));
   } else {
-    // Fallback to normal send
-    console.log(
-      "Sending draw message via context:",
-      JSON.stringify(drawMessage),
-    );
     context.sendMessage(drawMessage);
   }
 }
@@ -74,8 +66,4 @@ export function sendDrawMessage(
 /**
  * Adds debug event listeners to canvas
  */
-export function setupDebugEventListeners(canvas: HTMLCanvasElement): void {
-  canvas.addEventListener("click", (e) => {
-    console.log("CANVAS CLICK EVENT", e.clientX, e.clientY);
-  });
-}
+export function setupDebugEventListeners(_canvas: HTMLCanvasElement): void {}

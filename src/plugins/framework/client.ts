@@ -152,11 +152,6 @@ export function initializeClient(): void {
       for (const plugin of plugins) {
         plugin.onRender?.(mainLayer.ctx, context);
       }
-
-      // Debug rendering - only log occasionally to reduce console spam
-      if (Math.random() < 0.05) {
-        console.log("Rendered layers:", Array.from(layerIds));
-      }
     } catch (error) {
       console.error("Render error:", error);
       // Schedule another render attempt on failure
@@ -170,11 +165,9 @@ export function initializeClient(): void {
 
     // Special handling for draw messages - bypass plugin processing
     if (message.type === "draw") {
-      console.log("DIRECT SEND for draw message:", message);
       if (ws?.readyState === WebSocket.OPEN) {
         try {
           const stringMessage = JSON.stringify(message);
-          console.log("Sending raw draw message:", stringMessage);
           ws.send(stringMessage);
           return;
         } catch (error) {
@@ -198,11 +191,6 @@ export function initializeClient(): void {
     }
 
     if (ws?.readyState === WebSocket.OPEN) {
-      // Log outgoing messages for debugging (except frequent cursor moves)
-      if (message.type !== "move") {
-        console.log("Sending message:", message.type, message);
-      }
-
       // Make sure we're actually sending the message
       try {
         ws.send(JSON.stringify(processed));
@@ -218,11 +206,6 @@ export function initializeClient(): void {
     const context = createContext();
     if (message.type === "init") {
       clientId = message.clientId;
-    }
-
-    // Log incoming messages for debugging (except frequent cursor updates)
-    if (message.type !== "update") {
-      console.log("Received message:", message.type, message);
     }
 
     for (const plugin of plugins) {

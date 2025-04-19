@@ -9,7 +9,6 @@ import {
   setupDebugUI,
 } from "./debug-utils.ts";
 
-// ADDED: Clear canvas support
 function clearDrawState(context: PluginContext) {
   context.setState((state) => {
     const s = state as DrawClientState;
@@ -90,8 +89,6 @@ export const DrawPlugin = defineClientPlugin({
     // mouse down event - start drawing (if supported)
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousedown", (e) => {
-        console.log("RAW MOUSEDOWN EVENT", e.button, e.clientX, e.clientY);
-
         // only handle left mouse button (button === 0)
         if (e.button !== 0) return;
 
@@ -122,8 +119,6 @@ export const DrawPlugin = defineClientPlugin({
         // we already have rect from the check above
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
-        console.log("MOUSEDOWN EVENT CAPTURED", x, y);
 
         // get current cursor color
         const state = context.getState() as unknown as DrawClientState;
@@ -163,12 +158,10 @@ export const DrawPlugin = defineClientPlugin({
         });
 
         // send initial draw position
-        sendDrawMessage(context, x, y, true, "mousedown");
+        sendDrawMessage(context, x, y, true);
 
         // Force a redraw of the active layer
         context.markLayerDirty(ACTIVE_LAYER);
-
-        console.log("Drawing started at", x, y);
       });
     }
 
@@ -176,8 +169,6 @@ export const DrawPlugin = defineClientPlugin({
       document.addEventListener("mousemove", (e) => {
         const state = context.getState() as unknown as DrawClientState;
         if (!state.isDrawing) return;
-
-        console.log("RAW MOUSEMOVE EVENT - isDrawing:", state.isDrawing);
 
         const rect = canvas.getBoundingClientRect();
         if (
@@ -229,9 +220,6 @@ export const DrawPlugin = defineClientPlugin({
         // Mark the active layer as dirty in this region
         context.markLayerDirty(ACTIVE_LAYER, dirtyRegion);
 
-        // Send draw update - this is critical!
-        console.log("MOUSEMOVE - Sending draw message:", x, y);
-
         // Draw the line locally immediately for responsive feedback
         // Assert non-null context for drawing
         const ctx = context.canvasManager.getLayer(ACTIVE_LAYER).ctx!;
@@ -243,12 +231,8 @@ export const DrawPlugin = defineClientPlugin({
         ctx.lineCap = "round";
         ctx.stroke();
 
-        console.log(
-          `Drew line from (${state.lastX},${state.lastY}) to (${x},${y})`,
-        );
-
         // Send draw message
-        sendDrawMessage(context, x, y, true, "mousemove");
+        sendDrawMessage(context, x, y, true);
       });
     }
 
@@ -270,8 +254,6 @@ export const DrawPlugin = defineClientPlugin({
       e.preventDefault();
       e.stopPropagation();
 
-      console.log("STOP DRAWING EVENT CAPTURED");
-
       context.setState((state) => {
         const s = state as unknown as DrawClientState;
         s.isDrawing = false;
@@ -287,12 +269,11 @@ export const DrawPlugin = defineClientPlugin({
           context.markLayerDirty(ACTIVE_LAYER);
           // Clear pending lines after commit
           s.pendingLines = [];
-          console.log("Drawing ended, committed lines to static layer");
         }
       });
 
       // Send stop drawing message
-      sendDrawMessage(context, state.lastX, state.lastY, false, "mouseup");
+      sendDrawMessage(context, state.lastX, state.lastY, false);
     };
 
     // Stop drawing on mouse up or leave if supported
@@ -334,8 +315,6 @@ export const DrawPlugin = defineClientPlugin({
 
     // Handle draw updates from other clients
     if (message.type === "drawUpdate") {
-      console.log("Received drawUpdate:", JSON.stringify(message));
-
       const line: DrawLine = {
         clientId: message.clientId,
         startX: message.prevX,
@@ -344,10 +323,6 @@ export const DrawPlugin = defineClientPlugin({
         endY: message.y,
         color: message.color,
       };
-
-      console.log(
-        `Drawing line from (${line.startX},${line.startY}) to (${line.endX},${line.endY}) with color ${line.color}`,
-      );
 
       // Calculate dirty region for this line
       const dirtyRegion: DirtyRegion = {
@@ -395,8 +370,6 @@ export const DrawPlugin = defineClientPlugin({
 
       // Handle draw updates that come through custom messages
       if (data.action === "drawUpdate") {
-        console.log("Received custom drawUpdate:", data);
-
         const line: DrawLine = {
           clientId: data.clientId!,
           startX: data.prevX!,
@@ -457,8 +430,6 @@ export const DrawPlugin = defineClientPlugin({
         return;
       }
 
-      console.log(`Rendering ${lines.length} lines on static layer`);
-
       // Draw all lines
       for (const line of lines) {
         ctx.beginPath();
@@ -476,10 +447,6 @@ export const DrawPlugin = defineClientPlugin({
       if (pendingLines.length === 0) {
         return;
       }
-
-      console.log(
-        `Rendering ${pendingLines.length} pending lines on active layer`,
-      );
 
       // Draw pending lines
       for (const line of pendingLines) {
