@@ -1,1 +1,1 @@
-export { ContextMenuPlugin } from "./client.ts";
+export { ContextMenuPlugin, createContextMenuPlugin } from "./client.ts";

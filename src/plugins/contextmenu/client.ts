@@ -10,20 +10,24 @@ const DEFAULT_OPTIONS: ContextMenuOption[] = [
   { label: "Action 3", value: "action3" },
 ];
 
-export const ContextMenuPlugin = defineClientPlugin({
-  id: PLUGIN_ID,
-  priority: PLUGIN_PRIORITY,
-
-  onInit(context: PluginContext) {
-    context.setState((state) => {
-      // Use typed ContextMenuPluginState
-      (state as { contextMenu?: ContextMenuPluginState }).contextMenu = {
-        visible: false,
-        x: 0,
-        y: 0,
-        options: DEFAULT_OPTIONS,
-      };
-    });
+/**
+ * Factory to create a context menu plugin with custom options.
+ * @param options Array of ContextMenuOption defining menu entries and optional handlers.
+ */
+export function createContextMenuPlugin(options: ContextMenuOption[] = DEFAULT_OPTIONS) {
+  return defineClientPlugin({
+    id: PLUGIN_ID,
+    priority: PLUGIN_PRIORITY,
+    onInit(context: PluginContext) {
+      context.setState((state) => {
+        // Initialize context menu state with provided options
+        (state as { contextMenu?: ContextMenuPluginState }).contextMenu = {
+          visible: false,
+          x: 0,
+          y: 0,
+          options,
+        };
+      });
 
     // Create menu overlay
     const menu = document.createElement("div");
@@ -46,9 +50,9 @@ export const ContextMenuPlugin = defineClientPlugin({
     menu.tabIndex = -1;
     document.body.appendChild(menu);
 
-    function renderMenu(options: ContextMenuOption[], x: number, y: number) {
+    function renderMenu(opts: ContextMenuOption[], x: number, y: number) {
       menu.innerHTML = "";
-      options.forEach((opt) => {
+      opts.forEach((opt) => {
         const item = document.createElement("div");
         item.textContent = opt.label;
         item.style.padding = "8px 22px";
@@ -60,8 +64,12 @@ export const ContextMenuPlugin = defineClientPlugin({
         item.onclick = (e) => {
           e.stopPropagation();
           hideMenu();
-          // For now, just console.log selected option
-          console.log(`[contextmenu] selected:`, opt.value);
+          // Invoke custom handler if provided, otherwise log value
+          if (typeof opt.onClick === 'function') {
+            opt.onClick(context, opt, e);
+          } else {
+            console.log(`[contextmenu] selected:`, opt.value);
+          }
         };
         menu.appendChild(item);
       });
@@ -103,7 +111,7 @@ export const ContextMenuPlugin = defineClientPlugin({
       });
     }
 
-    // Listen for right-click event (contextmenu)
+    // listen for right-click event (contextmenu)
     if (typeof document.addEventListener === "function") {
       document.addEventListener("contextmenu", (e) => {
         // Only allow this context menu for the main canvas or background
@@ -121,38 +129,36 @@ export const ContextMenuPlugin = defineClientPlugin({
             cm.visible = true;
             cm.x = x;
             cm.y = y;
-            cm.options = DEFAULT_OPTIONS;
+            cm.options = options;
           }
         });
-        renderMenu(DEFAULT_OPTIONS, x, y);
+        renderMenu(options, x, y);
       });
-      // Hide on click elsewhere
       document.addEventListener("mousedown", (e) => {
         if (
           e.target === menu ||
           (e.target instanceof Node && menu.contains(e.target as Node))
         ) {
-          // Clicked inside menu
           return;
         }
         hideMenu();
       });
-      // Hide on escape
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           hideMenu();
         }
       });
-      // Hide on scroll
       document.addEventListener("scroll", () => hideMenu(), true);
-      // Hide on window resize
       globalThis.addEventListener("resize", () => hideMenu());
     }
   },
 
-  // No-op for server messages; this is a local-only menu
+  // no-op for server messages; this is a local-only menu
   onMessage(_message, _context) {
-    // Context menu doesn't handle server messages currently
     return true;
   },
 });
+}
+
+// Default plugin instance with default options
+export const ContextMenuPlugin = createContextMenuPlugin();
