@@ -103,10 +103,11 @@ export const DrawServerPlugin: ServerPlugin = {
 
         // Update drawing state
         context.setState((state) => {
-          if (!state.clientDrawStates) {
-            state.clientDrawStates = {};
+          const s = state as unknown as DrawServerState;
+          if (!s.clientDrawStates) {
+            s.clientDrawStates = {};
           }
-          state.clientDrawStates[clientId] = {
+          s.clientDrawStates[clientId] = {
             isDrawing: true,
             lastX: message.x,
             lastY: message.y,
@@ -115,18 +116,20 @@ export const DrawServerPlugin: ServerPlugin = {
 
         // Update cursor position
         context.setState((state) => {
-          if (state.cursors && state.cursors[clientId]) {
-            state.cursors[clientId].x = message.x;
-            state.cursors[clientId].y = message.y;
+          const s = state as unknown as DrawServerState;
+          if (s.cursors && s.cursors[clientId]) {
+            s.cursors[clientId].x = message.x;
+            s.cursors[clientId].y = message.y;
           }
         });
       } else {
         // Stop drawing
         context.setState((state) => {
-          if (!state.clientDrawStates) {
-            state.clientDrawStates = {};
+          const s = state as unknown as DrawServerState;
+          if (!s.clientDrawStates) {
+            s.clientDrawStates = {};
           }
-          state.clientDrawStates[clientId] = {
+          s.clientDrawStates[clientId] = {
             isDrawing: false,
             lastX: message.x || cursor.x,
             lastY: message.y || cursor.y,
