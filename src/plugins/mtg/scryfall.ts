@@ -1,3 +1,17 @@
+interface ScryfallCard {
+  name: string;
+  mana_cost?: string;
+  type_line?: string;
+  power?: string;
+  toughness?: string;
+  oracle_text?: string;
+  image_uris?: {
+    normal?: string;
+    [key: string]: string | undefined;
+  };
+  [key: string]: unknown;
+}
+
 class Scryfall {
   private static baseUrl: string = "https://api.scryfall.com";
 
@@ -19,7 +33,11 @@ class Scryfall {
       this.prettyPrint(card);
       return card;
     } catch (error) {
-      console.error(`Error fetching random card: ${(error as Error).message}`);
+      if (error instanceof Error) {
+        console.error(`Error fetching random card: ${error.message}`);
+      } else {
+        console.error("Unknown error fetching random card", error);
+      }
       throw error;
     }
   }
@@ -40,26 +58,12 @@ class Scryfall {
 
     console.log(`Text: ${card.oracle_text || "N/A"}`);
 
-    if (card.image_uris?.normal) {
+    if (card.image_uris && typeof card.image_uris.normal === "string") {
       console.log(`Image: ${card.image_uris.normal}`);
     }
 
     console.log("============================\n");
   }
-}
-
-interface ScryfallCard {
-  name: string;
-  mana_cost?: string;
-  type_line?: string;
-  power?: string;
-  toughness?: string;
-  oracle_text?: string;
-  image_uris?: {
-    normal?: string;
-    [key: string]: string | undefined;
-  };
-  [key: string]: any;
 }
 
 export default Scryfall;

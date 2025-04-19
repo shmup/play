@@ -1,6 +1,7 @@
 import { defineClientPlugin } from "../framework/client.ts";
 import type { PluginContext } from "../framework/client.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY, ContextMenuOption } from "./shared.ts";
+import type { ContextMenuPluginState } from "./shared.ts";
 
 // Default menu options for demonstration
 const DEFAULT_OPTIONS: ContextMenuOption[] = [
@@ -15,7 +16,8 @@ export const ContextMenuPlugin = defineClientPlugin({
 
   onInit(context: PluginContext) {
     context.setState((state) => {
-      (state as any).contextMenu = {
+      // Use typed ContextMenuPluginState
+      (state as { contextMenu?: ContextMenuPluginState }).contextMenu = {
         visible: false,
         x: 0,
         y: 0,
@@ -95,7 +97,9 @@ export const ContextMenuPlugin = defineClientPlugin({
     function hideMenu() {
       menu.style.display = "none";
       context.setState((state) => {
-        (state as any).contextMenu.visible = false;
+        if ((state as { contextMenu?: ContextMenuPluginState }).contextMenu) {
+          (state as { contextMenu: ContextMenuPluginState }).contextMenu.visible = false;
+        }
       });
     }
 
@@ -112,10 +116,13 @@ export const ContextMenuPlugin = defineClientPlugin({
         const x = e.clientX;
         const y = e.clientY;
         context.setState((state) => {
-          (state as any).contextMenu.visible = true;
-          (state as any).contextMenu.x = x;
-          (state as any).contextMenu.y = y;
-          (state as any).contextMenu.options = DEFAULT_OPTIONS;
+          const cm = (state as { contextMenu: ContextMenuPluginState }).contextMenu;
+          if (cm) {
+            cm.visible = true;
+            cm.x = x;
+            cm.y = y;
+            cm.options = DEFAULT_OPTIONS;
+          }
         });
         renderMenu(DEFAULT_OPTIONS, x, y);
       });

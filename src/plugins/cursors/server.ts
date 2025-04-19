@@ -5,6 +5,7 @@ import type {
   ServerPluginContext,
 } from "../../types/server.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
+import type { CursorState } from "../../types/shared.ts";
 
 export const CursorServerPlugin: ServerPlugin = {
   id: PLUGIN_ID,
@@ -26,7 +27,7 @@ export const CursorServerPlugin: ServerPlugin = {
 
     context.setState((state: ServerAppState) => {
       if (!state.cursors) state.cursors = {};
-      state.cursors[clientId] = { x: defaultX, y: defaultY, color };
+      (state.cursors as Record<string, CursorState>)[clientId] = { x: defaultX, y: defaultY, color };
     });
 
     // Send current cursor positions to new client
@@ -34,7 +35,7 @@ export const CursorServerPlugin: ServerPlugin = {
     context.sendTo(clientId, {
       type: "init",
       clientId,
-      cursors: state.cursors || {},
+      cursors: (state.cursors ?? {}) as Record<string, CursorState>,
     });
 
     // Notify other clients about new cursor
@@ -50,7 +51,7 @@ export const CursorServerPlugin: ServerPlugin = {
   onClientDisconnect(clientId: string, context: ServerPluginContext) {
     context.setState((state) => {
       if (state.cursors) {
-        delete state.cursors[clientId];
+        delete (state.cursors as Record<string, CursorState>)[clientId];
       }
     });
 
@@ -65,50 +66,56 @@ export const CursorServerPlugin: ServerPlugin = {
     message: ClientMessage,
     context: ServerPluginContext,
   ) {
+    // Handle windowSize update (custom client message)
     if (
       message.type === "custom" && message.pluginId === PLUGIN_ID &&
-      (message.data as any)?.windowSize
+      typeof (message.data as { windowSize?: { width: number; height: number } }).windowSize === "object"
     ) {
-      const { width, height } = (message.data as any).windowSize;
-      const centerX = Math.floor(width / 2);
-      const centerY = Math.floor(height / 2);
-      const state = context.getState();
-      const cursorState = state.cursors?.[clientId];
+      const windowSize = (message.data as { windowSize?: { width: number; height: number } }).windowSize;
+      if (windowSize) {
+        const centerX = Math.floor(windowSize.width / 2);
+        const centerY = Math.floor(windowSize.height / 2);
+        const state = context.getState();
+        const cursorState = (state.cursors as Record<string, CursorState> | undefined)?.[clientId];
 
-      if (cursorState) {
-        // update server state with centered position
-        context.setState((state) => {
-          if (state.cursors) {
-            state.cursors[clientId] = {
-              ...state.cursors[clientId],
-              x: centerX,
-              y: centerY,
-            };
-          }
-        });
+        if (cursorState) {
+          // update server state with centered position
+          context.setState((state) => {
+            const cursors = state.cursors as Record<string, CursorState>;
+            if (cursors) {
+              cursors[clientId] = {
+                ...cursors[clientId],
+                x: centerX,
+                y: centerY,
+              };
+            }
+          });
 
-        context.broadcast({
-          type: "update",
-          clientId,
-          x: centerX,
-          y: centerY,
-          color: cursorState.color,
-        });
+          context.broadcast({
+            type: "update",
+            clientId,
+            x: centerX,
+            y: centerY,
+            color: cursorState.color,
+          });
+        }
+        return false;
       }
-
-      return false;
     }
 
+    // Handle move (cursor move messages)
     if (message.type === "move") {
       const state = context.getState();
-      const cursorState = state.cursors?.[clientId];
+      const cursors = state.cursors as Record<string, CursorState> | undefined;
+      const cursorState = cursors?.[clientId];
 
       if (cursorState) {
         // update server state
         context.setState((state) => {
-          if (state.cursors) {
-            state.cursors[clientId] = {
-              ...state.cursors[clientId],
+          const c = state.cursors as Record<string, CursorState>;
+          if (c) {
+            c[clientId] = {
+              ...c[clientId],
               x: message.x,
               y: message.y,
             };

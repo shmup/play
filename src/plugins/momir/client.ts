@@ -4,9 +4,22 @@ import type { PluginContext } from "../framework/client.ts";
 const PLUGIN_ID = "momir";
 const PLUGIN_PRIORITY = 11; // Between lobbies and contextmenu/chat/cursor
 
-// Instanced only for lobby 2
+// Scryfall image URIs
+interface ScryfallImageUris {
+  normal?: string;
+  [key: string]: string | undefined;
+}
+
+// Scryfall card structure
+interface ScryfallCard {
+  name?: string;
+  image_uris?: ScryfallImageUris;
+  _imgObj?: HTMLImageElement;
+  [key: string]: unknown;
+}
+
 interface MomirCardState {
-  card: any | null;
+  card: ScryfallCard | null;
   x: number;
   y: number;
   dragging: boolean;
@@ -20,8 +33,8 @@ export const MomirPlugin = defineClientPlugin({
 
   onInit(context: PluginContext) {
     context.setState((state) => {
-      if (!(state as any).momir) {
-        (state as any).momir = {
+      if (!(state as { momir?: MomirCardState }).momir) {
+        (state as { momir: MomirCardState }).momir = {
           card: null,
           x: 200,
           y: 120,
@@ -38,7 +51,7 @@ export const MomirPlugin = defineClientPlugin({
       let visible = false;
       document.addEventListener("contextmenu", (e) => {
         // Only pop menu for lobby 2 and only on main canvas
-        const state = context.getState() as any;
+        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
         if (state.activeLobby !== 2) return;
         if (!(e.target instanceof HTMLCanvasElement)) return;
         e.preventDefault();
@@ -72,9 +85,11 @@ export const MomirPlugin = defineClientPlugin({
             menuEl = null;
             visible = false;
             // Generate card via scryfall momir
-            const card = await fetch(`https://api.scryfall.com/cards/random?q=is:token+is:unique+cmc%3D${i}&format=json`).then(x=>x.json());
+            const card: ScryfallCard = await fetch(
+              `https://api.scryfall.com/cards/random?q=is:token+is:unique+cmc%3D${i}&format=json`
+            ).then((x) => x.json());
             context.setState((state) => {
-              (state as any).momir.card = card;
+              (state as { momir: MomirCardState }).momir.card = card;
             });
             context.forceRender();
           };
@@ -97,9 +112,9 @@ export const MomirPlugin = defineClientPlugin({
 
       // Drag logic for card
       document.addEventListener("mousedown", (e) => {
-        const state = context.getState() as any;
+        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
         if (state.activeLobby !== 2) return;
-        const m = state.momir as MomirCardState;
+        const m = state.momir;
         if (m.card) {
           // Check if click within card area (estimate 300x410 region)
           const mx = e.clientX;
@@ -112,32 +127,32 @@ export const MomirPlugin = defineClientPlugin({
             m.offsetX = mx - m.x;
             m.offsetY = my - m.y;
             context.setState((state) => {
-              (state as any).momir = { ...m };
+              (state as { momir: MomirCardState }).momir = { ...m };
             });
           }
         }
       });
       document.addEventListener("mousemove", (e) => {
-        const state = context.getState() as any;
+        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
         if (state.activeLobby !== 2) return;
-        const m = state.momir as MomirCardState;
+        const m = state.momir;
         if (m.card && m.dragging) {
           m.x = e.clientX - m.offsetX;
           m.y = e.clientY - m.offsetY;
           context.setState((state) => {
-            (state as any).momir = { ...m };
+            (state as { momir: MomirCardState }).momir = { ...m };
           });
           context.forceRender();
         }
       });
       document.addEventListener("mouseup", (e) => {
-        const state = context.getState() as any;
+        const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
         if (state.activeLobby !== 2) return;
-        const m = state.momir as MomirCardState;
+        const m = state.momir;
         if (m.card && m.dragging) {
           m.dragging = false;
           context.setState((state) => {
-            (state as any).momir = { ...m };
+            (state as { momir: MomirCardState }).momir = { ...m };
           });
           context.forceRender();
         }
@@ -146,9 +161,9 @@ export const MomirPlugin = defineClientPlugin({
   },
 
   onRenderLayer(_layerId, ctx: CanvasRenderingContext2D, context: PluginContext) {
-    const state = context.getState() as any;
+    const state = context.getState() as { activeLobby?: number; momir: MomirCardState };
     if (state.activeLobby !== 2) return;
-    const m = state.momir as MomirCardState;
+    const m = state.momir;
     if (!m.card) return;
     // Draw card image (use card.image_uris.normal or .png)
     if (m.card.image_uris && m.card.image_uris.normal) {
@@ -158,8 +173,8 @@ export const MomirPlugin = defineClientPlugin({
         img.onload = () => context.forceRender();
         m.card._imgObj = img;
       }
-      if (m.card._imgObj.complete) {
-        ctx.drawImage(m.card._imgObj, m.x, m.y, 300, 410);
+      if ((m.card._imgObj as HTMLImageElement).complete) {
+        ctx.drawImage(m.card._imgObj as HTMLImageElement, m.x, m.y, 300, 410);
       } else {
         ctx.fillStyle = "#234";
         ctx.fillRect(m.x, m.y, 300, 410);
