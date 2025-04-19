@@ -119,6 +119,9 @@ export const DrawPlugin = defineClientPlugin({
         // we already have rect from the check above
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+        
+        // Convert screen coordinates to world coordinates
+        const worldPos = context.canvasManager.screenToWorld?.(x, y) || { x, y };
 
         // get current cursor color
         const state = context.getState() as unknown as DrawClientState;
@@ -127,8 +130,8 @@ export const DrawPlugin = defineClientPlugin({
         context.setState((state) => {
           const s = state as unknown as DrawClientState;
           s.isDrawing = true;
-          s.lastX = x;
-          s.lastY = y;
+          s.lastX = worldPos.x;
+          s.lastY = worldPos.y;
         });
 
         // update debug overlay immediately
@@ -137,10 +140,10 @@ export const DrawPlugin = defineClientPlugin({
         // create a dot for immediate visual feedback
         const dot: DrawLine = {
           clientId: context.clientId,
-          startX: x,
-          startY: y,
-          endX: x + 0.1, // Tiny offset to ensure it renders
-          endY: y + 0.1,
+          startX: worldPos.x,
+          startY: worldPos.y,
+          endX: worldPos.x + 0.1, // Tiny offset to ensure it renders
+          endY: worldPos.y + 0.1,
           color,
         };
 
@@ -185,18 +188,24 @@ export const DrawPlugin = defineClientPlugin({
 
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+        
+        // Check if we need to scroll based on cursor position
+        context.canvasManager.updateScrollFromCursor?.(x, y);
+        
+        // Convert screen coordinates to world coordinates
+        const worldPos = context.canvasManager.screenToWorld?.(x, y) || { x, y };
 
         // Skip if position hasn't changed significantly
-        if (Math.abs(x - state.lastX) < 1 && Math.abs(y - state.lastY) < 1) {
+        if (Math.abs(worldPos.x - state.lastX) < 1 && Math.abs(worldPos.y - state.lastY) < 1) {
           return;
         }
 
         // Calculate dirty region for this line segment
         const dirtyRegion: DirtyRegion = {
-          x: Math.min(state.lastX, x) - PADDING,
-          y: Math.min(state.lastY, y) - PADDING,
-          width: Math.abs(x - state.lastX) + PADDING * 2,
-          height: Math.abs(y - state.lastY) + PADDING * 2,
+          x: Math.min(state.lastX, worldPos.x) - PADDING,
+          y: Math.min(state.lastY, worldPos.y) - PADDING,
+          width: Math.abs(worldPos.x - state.lastX) + PADDING * 2,
+          height: Math.abs(worldPos.y - state.lastY) + PADDING * 2,
         };
 
         // Create a line for local rendering
@@ -204,8 +213,8 @@ export const DrawPlugin = defineClientPlugin({
           clientId: context.clientId,
           startX: state.lastX,
           startY: state.lastY,
-          endX: x,
-          endY: y,
+          endX: worldPos.x,
+          endY: worldPos.y,
           color: state.cursors?.[context.clientId]?.color || "#000000",
         };
 
@@ -213,8 +222,8 @@ export const DrawPlugin = defineClientPlugin({
         context.setState((state) => {
           const s = state as unknown as DrawClientState;
           s.pendingLines = [...(s.pendingLines || []), line];
-          s.lastX = x;
-          s.lastY = y;
+          s.lastX = worldPos.x;
+          s.lastY = worldPos.y;
         });
 
         // Mark the active layer as dirty in this region
@@ -223,16 +232,28 @@ export const DrawPlugin = defineClientPlugin({
         // Draw the line locally immediately for responsive feedback
         // Assert non-null context for drawing
         const ctx = context.canvasManager.getLayer(ACTIVE_LAYER).ctx!;
+        
+        // Save context state before applying transformations
+        ctx.save();
+        
+        // Apply viewport translation
+        const viewport = context.canvasManager.getViewport?.() || { x: 0, y: 0 };
+        ctx.translate(-viewport.x, -viewport.y);
+        
+        // Draw the line in world coordinates
         ctx.beginPath();
         ctx.moveTo(state.lastX, state.lastY);
-        ctx.lineTo(x, y);
+        ctx.lineTo(worldPos.x, worldPos.y);
         ctx.strokeStyle = state.cursors?.[context.clientId]?.color || "#000000";
         ctx.lineWidth = LINE_WIDTH;
         ctx.lineCap = "round";
         ctx.stroke();
+        
+        // Restore context state
+        ctx.restore();
 
-        // Send draw message
-        sendDrawMessage(context, x, y, true);
+        // Send draw message with world coordinates
+        sendDrawMessage(context, worldPos.x, worldPos.y, true);
       });
     }
 
@@ -272,7 +293,7 @@ export const DrawPlugin = defineClientPlugin({
         }
       });
 
-      // Send stop drawing message
+      // Send stop drawing message with world coordinates
       sendDrawMessage(context, state.lastX, state.lastY, false);
     };
 

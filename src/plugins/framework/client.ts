@@ -12,6 +12,10 @@ export interface PluginCanvasManager {
   markDirty(layerId: string, region?: DirtyRegion): void;
   getMainCanvas?(): HTMLCanvasElement;
   getDimensions?(): { width: number; height: number };
+  getViewport?(): { x: number; y: number; width: number; height: number };
+  updateScrollFromCursor?(x: number, y: number): boolean;
+  screenToWorld?(x: number, y: number): { x: number; y: number };
+  worldToScreen?(x: number, y: number): { x: number; y: number };
 }
 
 export interface PluginContext {
@@ -139,10 +143,23 @@ export function initializeClient(): void {
             canvasManager.clearDirtyRegions(layerId);
           }
 
+          // Apply viewport transformation for world coordinates
+          const ctx = layer.ctx;
+          ctx.save();
+          
+          // Apply viewport translation for all layers except UI and cursor
+          if (layerId !== "ui" && layerId !== "cursor") {
+            const viewport = canvasManager.getViewport?.() || { x: 0, y: 0 };
+            ctx.translate(-viewport.x, -viewport.y);
+          }
+          
           // Let plugins render to this specific layer
           for (const plugin of plugins) {
-            plugin.onRenderLayer?.(layerId, layer.ctx, context);
+            plugin.onRenderLayer?.(layerId, ctx, context);
           }
+          
+          // Restore context
+          ctx.restore();
         }
       });
 
