@@ -1,6 +1,11 @@
 import type { ClientMessage } from "../../types/shared.ts";
 import type { ServerPlugin, ServerPluginContext } from "../../types/server.ts";
 import { PLUGIN_ID, PLUGIN_PRIORITY } from "./shared.ts";
+import type {
+  ChatPluginState,
+  ChatClientMessageData,
+  ChatServerMessageData,
+} from "./shared.ts";
 
 export const ChatServerPlugin: ServerPlugin = {
   id: PLUGIN_ID,
@@ -8,7 +13,8 @@ export const ChatServerPlugin: ServerPlugin = {
 
   onInit(context: ServerPluginContext) {
     context.setState((state) => {
-      (state as any).chat = [];
+      const s = state as unknown as ChatPluginState;
+      s.chat = [];
     });
   },
 
@@ -18,15 +24,12 @@ export const ChatServerPlugin: ServerPlugin = {
     context: ServerPluginContext,
   ) {
     // Handle chat plugin messages
-    if (message.type === "custom" && (message as any).pluginId === PLUGIN_ID) {
-      const data = (message as any).data as any;
+    if (message.type === "custom" && message.pluginId === PLUGIN_ID) {
+      const data = message.data as ChatClientMessageData & { requestHistory?: boolean };
       // Client requests history
       if (data.requestHistory) {
-        const state = context.getState() as any;
-        const chats = (state as any).chat as {
-          clientId: string;
-          text: string;
-        }[] | undefined;
+      const state = context.getState() as unknown as ChatPluginState;
+        const chats = state.chat as ChatServerMessageData[] | undefined;
         if (chats && chats.length > 0) {
           for (const chatData of chats) {
             context.sendTo(clientId, {
@@ -39,10 +42,11 @@ export const ChatServerPlugin: ServerPlugin = {
         return false;
       }
       // New chat message
-      const text = (data as { text?: string }).text!;
-      const chatData = { clientId, text };
+      const text = data.text!;
+      const chatData: ChatServerMessageData = { clientId, text };
       context.setState((state) => {
-        (state as any).chat.push(chatData);
+        const s = state as unknown as ChatPluginState;
+        s.chat.push(chatData);
       });
       context.broadcast({
         type: "custom",
