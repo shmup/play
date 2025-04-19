@@ -9,8 +9,12 @@ export function setupDebugUI(
   debugOverlay: HTMLDivElement;
   updateDebugOverlay: (x: number, y: number, isDrawing: boolean) => void;
 } {
-  // Create debug overlay
+  // remove existing overlays
+  const existingOverlays = document.querySelectorAll('div[data-debug-overlay="draw"]');
+  existingOverlays.forEach(overlay => overlay.remove());
+
   const debugOverlay = document.createElement("div");
+  debugOverlay.setAttribute('data-debug-overlay', 'draw'); // Add identifier attribute
   debugOverlay.style.position = "fixed";
   debugOverlay.style.top = "10px";
   debugOverlay.style.right = "10px";
