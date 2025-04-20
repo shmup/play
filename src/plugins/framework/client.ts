@@ -25,9 +25,7 @@ export interface PluginContext {
   getState: () => AppState;
   setState: (updater: (state: AppState) => void) => void;
   forceRender: () => void;
-  // The canvas manager for layered rendering and dirty region tracking
   canvasManager: PluginCanvasManager;
-  // Mark a layer as dirty; region parameter is optional
   markLayerDirty: (layerId: string, region?: DirtyRegion) => void;
 }
 
@@ -70,7 +68,6 @@ export function registerPlugin(plugin: ClientPlugin): void {
 }
 
 export function initializeClient(): void {
-  // Create canvas manager instead of using a single canvas
   const canvasManager = new CanvasManager("canvas-container");
 
   let clientId = "";
@@ -118,10 +115,8 @@ export function initializeClient(): void {
     try {
       const context = createContext();
 
-      // Get all layers that need rendering
       const layerIds = new Set<string>();
 
-      // Let plugins register which layers they want to render
       for (const plugin of plugins) {
         if (plugin.onBeforeRender) {
           const pluginLayers = plugin.onBeforeRender(context) || [];
@@ -129,50 +124,43 @@ export function initializeClient(): void {
         }
       }
 
-      // Add default layers
       layerIds.add("main");
       layerIds.add("ui");
 
-      // Clear and render each dirty layer
+      // clear and render each dirty layer
       layerIds.forEach((layerId) => {
         const layer = canvasManager.getLayer(layerId);
         if (layer.isDirty || layer.needsFullRedraw) {
-          // Special handling for cursor layer - always clear completely
           if (layerId === "cursor") {
             canvasManager.clearLayer(layerId);
           } else {
             canvasManager.clearDirtyRegions(layerId);
           }
 
-          // Apply viewport transformation for world coordinates
           const ctx = layer.ctx;
           ctx.save();
 
-          // Apply viewport translation for all layers except UI and cursor
           if (layerId !== "ui" && layerId !== "cursor") {
             const viewport = canvasManager.getViewport?.() || { x: 0, y: 0 };
             ctx.translate(-viewport.x, -viewport.y);
           }
 
-          // Let plugins render to this specific layer
           for (const plugin of plugins) {
             plugin.onRenderLayer?.(layerId, ctx, context);
           }
 
-          // Restore context
           ctx.restore();
         }
       });
 
-      // Call the legacy onRender method for backward compatibility
-      // This renders to the main layer
+      // call the legacy onrender method for backward compatibility
+      // this renders to the main layer
       const mainLayer = canvasManager.getLayer("main");
       for (const plugin of plugins) {
         plugin.onRender?.(mainLayer.ctx, context);
       }
     } catch (error) {
       console.error("Render error:", error);
-      // Schedule another render attempt on failure
       scheduleRender();
     }
   }
@@ -197,7 +185,7 @@ export function initializeClient(): void {
       }
     }
 
-    // Normal processing for non-draw messages
+    // proces non-drawing messages
     for (const plugin of plugins) {
       if (plugin.onBeforeSend) {
         const result = plugin.onBeforeSend(processed, context);
@@ -209,7 +197,6 @@ export function initializeClient(): void {
     }
 
     if (ws?.readyState === WebSocket.OPEN) {
-      // Make sure we're actually sending the message
       try {
         ws.send(JSON.stringify(processed));
       } catch (error) {
@@ -234,16 +221,16 @@ export function initializeClient(): void {
         }
       }
     }
-    // Ensure render happens after all message processing
-    // Use both immediate and delayed renders to ensure content appears
+    // ensure render happens after all message processing
+    // use both immediate and delayed renders to ensure content appears
     render();
     requestAnimationFrame(() => render());
   }
 
   function connect(): void {
     ws = new WebSocket(`ws://${globalThis.location.host}/ws`);
-    // Expose WebSocket for debugging
-    (globalThis as unknown as { debugSocket?: WebSocket }).debugSocket = ws;
+    // expose websocket for debugging
+    (globalThis as { debugSocket?: WebSocket }).debugSocket = ws;
 
     ws.onopen = () => {
       reconnectAttempts = 0;
@@ -251,13 +238,12 @@ export function initializeClient(): void {
       for (const plugin of plugins) {
         plugin.onInit?.(context);
       }
-      // Force multiple renders after connection is established
+      // force multiple renders after connection is established
       // to ensure everything is properly displayed
       render();
       setTimeout(() => render(), 100);
       setTimeout(() => render(), 500);
 
-      // Set up keyboard event listener for spacebar to reset viewport
       globalThis.addEventListener("keydown", (event) => {
         if (event.code === "Space" && !event.repeat) {
           event.preventDefault();
