@@ -3,6 +3,7 @@ import type { ClientMessage } from "./types/shared.ts";
 import { ChatServerPlugin } from "./plugins/chat/index.ts";
 import { CursorServerPlugin } from "./plugins/cursors/index.ts";
 import { DrawServerPlugin } from "./plugins/draw/index.ts";
+import { CodenamesServerPlugin } from "./plugins/codenames/index.ts";
 import {
   appState,
   createContext,
@@ -16,6 +17,7 @@ const clientScript = result.code;
 registerPlugin(ChatServerPlugin);
 registerPlugin(CursorServerPlugin);
 registerPlugin(DrawServerPlugin);
+registerPlugin(CodenamesServerPlugin);
 
 Deno.serve((req) => {
   const url = new URL(req.url);
