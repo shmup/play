@@ -6,7 +6,9 @@ import { ChatPlugin } from "./plugins/chat/index.ts";
 import { CursorPlugin } from "./plugins/cursors/index.ts";
 import { DrawPlugin } from "./plugins/draw/index.ts";
 import { createContextMenuPlugin } from "./plugins/contextmenu/index.ts";
+import { BackgroundPlugin } from "./plugins/background/index.ts";
 
+registerPlugin(BackgroundPlugin); // Register background plugin first so it renders behind other elements
 registerPlugin(ChatPlugin);
 registerPlugin(CursorPlugin);
 registerPlugin(DrawPlugin);
