@@ -16,6 +16,7 @@ export interface PluginCanvasManager {
   updateScrollFromCursor?(x: number, y: number): boolean;
   screenToWorld?(x: number, y: number): { x: number; y: number };
   worldToScreen?(x: number, y: number): { x: number; y: number };
+  resetViewport?(): void;
 }
 
 export interface PluginContext {
@@ -255,6 +256,15 @@ export function initializeClient(): void {
       render();
       setTimeout(() => render(), 100);
       setTimeout(() => render(), 500);
+
+      // Set up keyboard event listener for spacebar to reset viewport
+      globalThis.addEventListener("keydown", (event) => {
+        if (event.code === "Space" && !event.repeat) {
+          event.preventDefault();
+          canvasManager.resetViewport?.();
+          scheduleRender();
+        }
+      });
     };
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as ServerMessage;

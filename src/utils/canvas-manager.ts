@@ -171,6 +171,14 @@ export class CanvasManager {
     this.width = globalThis.innerWidth;
     this.height = globalThis.innerHeight;
 
+    // Store initial viewport dimensions
+    this.initialViewport = {
+      x: this.viewport.x,
+      y: this.viewport.y,
+      width: this.width,
+      height: this.height,
+    };
+
     this.layers.forEach((layer) => {
       layer.canvas.width = this.width;
       layer.canvas.height = this.height;
@@ -251,6 +259,48 @@ export class CanvasManager {
    */
   public getMainCanvas(): HTMLCanvasElement {
     return this.getLayer("main", 0).canvas;
+  }
+
+  /**
+   * Reset viewport to initial position
+   */
+  public resetViewport(): void {
+    // Animate the transition to initial position
+    const startX = this.viewport.x;
+    const startY = this.viewport.y;
+    const targetX = this.initialViewport.x;
+    const targetY = this.initialViewport.y;
+
+    // Stop any current scrolling
+    this.isScrolling = false;
+    this.scrollDirection = { x: 0, y: 0 };
+    this.currentScrollSpeed = { x: 0, y: 0 };
+
+    // Animate the transition
+    const duration = 500; // ms
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Use easeOutCubic for smooth deceleration
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+      this.viewport.x = startX + (targetX - startX) * easeProgress;
+      this.viewport.y = startY + (targetY - startY) * easeProgress;
+
+      // Mark all layers as dirty
+      this.layers.forEach((layer) => {
+        layer.needsFullRedraw = true;
+        layer.isDirty = true;
+      });
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
   }
 
   /**
