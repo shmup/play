@@ -2,6 +2,11 @@
  * Canvas manager for optimized rendering with layered canvases and dirty region tracking
  * Supports infinite scrolling with viewport management
  */
+// Polyfill requestAnimationFrame for environments (e.g., Deno tests) without a browser API
+// Disable requestAnimationFrame loop in environments without browser API to avoid test timers
+if (typeof globalThis.requestAnimationFrame !== "function") {
+  globalThis.requestAnimationFrame = (_callback: FrameRequestCallback): number => 0;
+}
 
 export interface DirtyRegion {
   x: number;

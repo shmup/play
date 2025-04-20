@@ -8,6 +8,18 @@ export function setupDebugUI(): {
   debugOverlay: HTMLDivElement;
   updateDebugOverlay: (x: number, y: number, isDrawing: boolean) => void;
 } {
+  // Skip debug UI in non-browser or test environments
+  if (
+    typeof document === "undefined" ||
+    typeof document.querySelectorAll !== "function" ||
+    typeof document.createElement !== "function" ||
+    typeof document.body?.appendChild !== "function"
+  ) {
+    return {
+      debugOverlay: {} as HTMLDivElement,
+      updateDebugOverlay: (_x: number, _y: number, _isDrawing: boolean) => {},
+    };
+  }
   // remove existing overlays
   const existingOverlays = document.querySelectorAll(
     'div[data-debug-overlay="draw"]',
