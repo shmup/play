@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertNotEquals,
-} from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import { CanvasManager } from "../src/utils/canvas-manager.ts";
 
 // Create a mock document for testing

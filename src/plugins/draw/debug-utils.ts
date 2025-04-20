@@ -4,17 +4,18 @@ import type { ClientMessage } from "../../types/shared.ts";
 /**
  * Creates and attaches debug UI elements for the draw plugin
  */
-export function setupDebugUI(
-): {
+export function setupDebugUI(): {
   debugOverlay: HTMLDivElement;
   updateDebugOverlay: (x: number, y: number, isDrawing: boolean) => void;
 } {
   // remove existing overlays
-  const existingOverlays = document.querySelectorAll('div[data-debug-overlay="draw"]');
-  existingOverlays.forEach(overlay => overlay.remove());
+  const existingOverlays = document.querySelectorAll(
+    'div[data-debug-overlay="draw"]',
+  );
+  existingOverlays.forEach((overlay) => overlay.remove());
 
   const debugOverlay = document.createElement("div");
-  debugOverlay.setAttribute('data-debug-overlay', 'draw'); // Add identifier attribute
+  debugOverlay.setAttribute("data-debug-overlay", "draw"); // Add identifier attribute
   debugOverlay.style.position = "fixed";
   debugOverlay.style.top = "10px";
   debugOverlay.style.right = "10px";
@@ -45,7 +46,6 @@ export function sendDrawMessage(
   y: number,
   isDrawing: boolean,
 ): void {
-
   const drawMessage: ClientMessage = {
     type: "draw",
     x,

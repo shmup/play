@@ -119,9 +119,10 @@ export const DrawPlugin = defineClientPlugin({
         // we already have rect from the check above
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         // Convert screen coordinates to world coordinates
-        const worldPos = context.canvasManager.screenToWorld?.(x, y) || { x, y };
+        const worldPos = context.canvasManager.screenToWorld?.(x, y) ||
+          { x, y };
 
         // get current cursor color
         const state = context.getState() as unknown as DrawClientState;
@@ -188,15 +189,19 @@ export const DrawPlugin = defineClientPlugin({
 
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         // Check if we need to scroll based on cursor position
         context.canvasManager.updateScrollFromCursor?.(x, y);
-        
+
         // Convert screen coordinates to world coordinates
-        const worldPos = context.canvasManager.screenToWorld?.(x, y) || { x, y };
+        const worldPos = context.canvasManager.screenToWorld?.(x, y) ||
+          { x, y };
 
         // Skip if position hasn't changed significantly
-        if (Math.abs(worldPos.x - state.lastX) < 1 && Math.abs(worldPos.y - state.lastY) < 1) {
+        if (
+          Math.abs(worldPos.x - state.lastX) < 1 &&
+          Math.abs(worldPos.y - state.lastY) < 1
+        ) {
           return;
         }
 
@@ -232,14 +237,15 @@ export const DrawPlugin = defineClientPlugin({
         // Draw the line locally immediately for responsive feedback
         // Assert non-null context for drawing
         const ctx = context.canvasManager.getLayer(ACTIVE_LAYER).ctx!;
-        
+
         // Save context state before applying transformations
         ctx.save();
-        
+
         // Apply viewport translation
-        const viewport = context.canvasManager.getViewport?.() || { x: 0, y: 0 };
+        const viewport = context.canvasManager.getViewport?.() ||
+          { x: 0, y: 0 };
         ctx.translate(-viewport.x, -viewport.y);
-        
+
         // Draw the line in world coordinates
         ctx.beginPath();
         ctx.moveTo(state.lastX, state.lastY);
@@ -248,7 +254,7 @@ export const DrawPlugin = defineClientPlugin({
         ctx.lineWidth = LINE_WIDTH;
         ctx.lineCap = "round";
         ctx.stroke();
-        
+
         // Restore context state
         ctx.restore();
 

@@ -30,7 +30,7 @@ export class CanvasManager {
   private container: HTMLElement;
   private width: number = 0;
   private height: number = 0;
-  
+
   // Viewport properties for infinite scrolling
   private viewport: Viewport = { x: 0, y: 0, width: 0, height: 0 };
   private scrollSpeed: number = 10;
@@ -45,11 +45,11 @@ export class CanvasManager {
 
     // Handle window resize
     globalThis.addEventListener("resize", () => this.resize());
-    
+
     // Start the scroll animation loop
     this.startScrollLoop();
   }
-  
+
   /**
    * Start the animation loop for smooth scrolling
    */
@@ -62,7 +62,7 @@ export class CanvasManager {
     };
     requestAnimationFrame(scrollLoop);
   }
-  
+
   /**
    * Update viewport position based on scroll direction
    */
@@ -73,8 +73,14 @@ export class CanvasManager {
     const newY = this.viewport.y + (this.scrollDirection.y * this.scrollSpeed);
 
     // Apply bounds checking
-    this.viewport.x = Math.max(-this.maxScrollDistance, Math.min(this.maxScrollDistance, newX));
-    this.viewport.y = Math.max(-this.maxScrollDistance, Math.min(this.maxScrollDistance, newY));
+    this.viewport.x = Math.max(
+      -this.maxScrollDistance,
+      Math.min(this.maxScrollDistance, newX),
+    );
+    this.viewport.y = Math.max(
+      -this.maxScrollDistance,
+      Math.min(this.maxScrollDistance, newY),
+    );
 
     // Mark all layers as dirty for redraw
     this.layers.forEach((layer) => {
@@ -174,14 +180,14 @@ export class CanvasManager {
   public getDimensions(): { width: number; height: number } {
     return { width: this.width, height: this.height };
   }
-  
+
   /**
    * Get current viewport
    */
   public getViewport(): Viewport {
     return { ...this.viewport };
   }
-  
+
   /**
    * Set scroll direction based on cursor position
    * @param x Cursor X position
@@ -192,17 +198,21 @@ export class CanvasManager {
     // Calculate scroll direction based on cursor position
     const dirX = this.calculateScrollDirection(x, 0, this.width);
     const dirY = this.calculateScrollDirection(y, 0, this.height);
-    
+
     this.scrollDirection = { x: dirX, y: dirY };
     this.isScrolling = dirX !== 0 || dirY !== 0;
-    
+
     return this.isScrolling;
   }
-  
+
   /**
    * Calculate scroll direction for a single axis
    */
-  private calculateScrollDirection(pos: number, min: number, max: number): number {
+  private calculateScrollDirection(
+    pos: number,
+    min: number,
+    max: number,
+  ): number {
     if (pos < min + this.scrollThreshold) {
       return -1;
     } else if (pos > max - this.scrollThreshold) {
@@ -210,24 +220,24 @@ export class CanvasManager {
     }
     return 0;
   }
-  
+
   /**
    * Convert screen coordinates to world coordinates
    */
-  public screenToWorld(x: number, y: number): { x: number, y: number } {
+  public screenToWorld(x: number, y: number): { x: number; y: number } {
     return {
       x: x + this.viewport.x,
-      y: y + this.viewport.y
+      y: y + this.viewport.y,
     };
   }
-  
+
   /**
    * Convert world coordinates to screen coordinates
    */
-  public worldToScreen(x: number, y: number): { x: number, y: number } {
+  public worldToScreen(x: number, y: number): { x: number; y: number } {
     return {
       x: x - this.viewport.x,
-      y: y - this.viewport.y
+      y: y - this.viewport.y,
     };
   }
 

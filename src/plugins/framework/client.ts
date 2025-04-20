@@ -146,18 +146,18 @@ export function initializeClient(): void {
           // Apply viewport transformation for world coordinates
           const ctx = layer.ctx;
           ctx.save();
-          
+
           // Apply viewport translation for all layers except UI and cursor
           if (layerId !== "ui" && layerId !== "cursor") {
             const viewport = canvasManager.getViewport?.() || { x: 0, y: 0 };
             ctx.translate(-viewport.x, -viewport.y);
           }
-          
+
           // Let plugins render to this specific layer
           for (const plugin of plugins) {
             plugin.onRenderLayer?.(layerId, ctx, context);
           }
-          
+
           // Restore context
           ctx.restore();
         }

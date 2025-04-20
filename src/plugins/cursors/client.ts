@@ -37,7 +37,7 @@ export const CursorPlugin = defineClientPlugin({
     if (typeof document.addEventListener === "function") {
       document.addEventListener("mousemove", (e) => {
         const position = { x: e.clientX, y: e.clientY };
-        
+
         // Check if we need to scroll based on cursor position
         context.canvasManager.updateScrollFromCursor?.(position.x, position.y);
 
