@@ -5,7 +5,9 @@
 // Polyfill requestAnimationFrame for environments (e.g., Deno tests) without a browser API
 // Disable requestAnimationFrame loop in environments without browser API to avoid test timers
 if (typeof globalThis.requestAnimationFrame !== "function") {
-  globalThis.requestAnimationFrame = (_callback: FrameRequestCallback): number => 0;
+  globalThis.requestAnimationFrame = (
+    _callback: FrameRequestCallback,
+  ): number => 0;
 }
 
 export interface DirtyRegion {
@@ -38,11 +40,14 @@ export class CanvasManager {
 
   // Viewport properties for infinite scrolling
   private viewport: Viewport = { x: 0, y: 0, width: 0, height: 0 };
+  private initialViewport: Viewport = { x: 0, y: 0, width: 0, height: 0 };
   private scrollSpeed: number = 10;
   private isScrolling: boolean = false;
   private scrollDirection = { x: 0, y: 0 };
   private scrollThreshold = 96; // Pixels from edge to trigger scrolling (increased from 50 for smoother/more-anticipatory scroll)
   private maxScrollDistance = 10000;
+  private scrollAcceleration = 0.2; // Acceleration factor for smooth scrolling
+  private currentScrollSpeed = { x: 0, y: 0 }; // Current speed with acceleration applied
 
   constructor(containerId: string) {
     this.container = document.getElementById(containerId) || document.body;
@@ -72,10 +77,33 @@ export class CanvasManager {
    * Update viewport position based on scroll direction
    */
   private updateViewport(): void {
-    if (!this.isScrolling) return;
+    if (!this.isScrolling) {
+      // Decelerate when not actively scrolling
+      if (
+        Math.abs(this.currentScrollSpeed.x) > 0.1 ||
+        Math.abs(this.currentScrollSpeed.y) > 0.1
+      ) {
+        this.currentScrollSpeed.x *= 0.9;
+        this.currentScrollSpeed.y *= 0.9;
+      } else {
+        this.currentScrollSpeed.x = 0;
+        this.currentScrollSpeed.y = 0;
+        return;
+      }
+    } else {
+      // Accelerate toward target speed
+      const targetSpeedX = this.scrollDirection.x * this.scrollSpeed;
+      const targetSpeedY = this.scrollDirection.y * this.scrollSpeed;
 
-    const newX = this.viewport.x + (this.scrollDirection.x * this.scrollSpeed);
-    const newY = this.viewport.y + (this.scrollDirection.y * this.scrollSpeed);
+      this.currentScrollSpeed.x += (targetSpeedX - this.currentScrollSpeed.x) *
+        this.scrollAcceleration;
+      this.currentScrollSpeed.y += (targetSpeedY - this.currentScrollSpeed.y) *
+        this.scrollAcceleration;
+    }
+
+    // Apply the calculated speed
+    const newX = this.viewport.x + this.currentScrollSpeed.x;
+    const newY = this.viewport.y + this.currentScrollSpeed.y;
 
     // Apply bounds checking
     this.viewport.x = Math.max(
