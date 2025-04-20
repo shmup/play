@@ -19,8 +19,29 @@ registerPlugin(CursorServerPlugin);
 registerPlugin(DrawServerPlugin);
 registerPlugin(CodenamesServerPlugin);
 
+const staticFiles = [
+  ["assets/favicon.ico", "image/x-icon"],
+];
+
 Deno.serve((req) => {
   const url = new URL(req.url);
+
+  // handle static files
+  for (const [path, contentType] of staticFiles) {
+    if (url.pathname === `/${path.split("/").pop()}`) {
+      try {
+        const fileContent = Deno.readFileSync(path);
+        return new Response(fileContent, {
+          headers: {
+            "content-type": contentType,
+          },
+        });
+      } catch (e) {
+        console.error(`Error serving ${path}:`, e);
+        return new Response(`${path} not found`, { status: 404 });
+      }
+    }
+  }
 
   if (url.pathname === "/" || url.pathname === "") {
     return new Response(
@@ -28,6 +49,7 @@ Deno.serve((req) => {
       <html>
       <head>
         <title>don't blink</title>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
         <style>
           body, html {
             margin: 0;
